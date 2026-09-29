@@ -7,6 +7,11 @@ final class Mailer
         $from = (string)cfg('mail.from_email', 'noreply@localhost');
         $fromName = (string)cfg('mail.from_name', 'MailTrack Pro');
         $smtp = cfg('mail.smtp', []);
+        // SMTP nurodytas, bet be prisijungimo duomenų – nesiunčiam (kitaip Hostinger atmeta ir pilnas žurnalas klaidų)
+        if (!empty($smtp['host']) && (empty($smtp['user']) || empty($smtp['pass']))) {
+            Logger::info('El. laiškas nesiųstas: SMTP be prisijungimo duomenų (įveskite config.php mail.smtp.user/pass arba naudokite Telegram)', ['to' => $to]);
+            return false;
+        }
         try {
             if (!empty($smtp['host'])) {
                 self::smtpSend($smtp, $from, $fromName, $to, $subject, $html);

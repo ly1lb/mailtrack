@@ -313,11 +313,11 @@ if ($path === 'settings' || preg_match('#^settings/([a-z-]+)$#', $path, $m)) {
                 flash($tok === '' ? 'Telegram boto raktas pašalintas.' : 'Telegram boto raktas išsaugotas. Dabar parašykite botui /start ir spauskite „Aptikti chat ID“.');
                 break;
             case 'telegram-test':
-                if ($u['telegram_chat_id'] === '') {
+                if (($USER['telegram_chat_id'] ?? '') === '') {
                     flash('Nėra chat ID. Pirmiausia „Aptikti chat ID“.', 'err');
                     break;
                 }
-                $ok = Notifier::telegram($u['telegram_chat_id'], '🔔 MailTrack Pro bandomoji žinutė – viskas veikia!');
+                $ok = Notifier::telegram($USER['telegram_chat_id'], '🔔 MailTrack Pro bandomoji žinutė – viskas veikia!');
                 flash($ok ? 'Bandomoji žinutė išsiųsta į Telegram.' : 'Nepavyko išsiųsti – žr. Žurnalus (galbūt neteisingas chat ID ar serveris be interneto).', $ok ? 'ok' : 'err');
                 break;
             case 'telegram-detect':
@@ -480,7 +480,9 @@ if ($path === 'diagnostics' || preg_match('#^diagnostics/(mail|telegram|pixel)$#
     $cronOk = $lastCron && strtotime($lastCron . ' UTC') > time() - 3600;
     $checks[] = ['Cron paleistas per paskutinę valandą', (bool)$cronOk, $lastCron ? fmt_dt($lastCron) . ' (' . ago($lastCron) . ')' : 'niekada'];
     $checks[] = ['Telegram botas sukonfigūruotas', telegram_token() !== '', telegram_token() ? 'taip' : 'ne (neprivaloma)'];
-    $checks[] = ['SMTP sukonfigūruotas', (bool)cfg('mail.smtp.host'), cfg('mail.smtp.host') ?: 'naudojamas mail()'];
+    $smtpHost = (string)cfg('mail.smtp.host');
+    $smtpCreds = $smtpHost !== '' && cfg('mail.smtp.user') && cfg('mail.smtp.pass');
+    $checks[] = ['El. pašto siuntimas', $smtpHost === '' || $smtpCreds, $smtpHost === '' ? 'mail()' : ($smtpCreds ? $smtpHost . ' (su prisijungimu)' : $smtpHost . ' – TRŪKSTA user/pass (el. laiškai nesiunčiami)')];
     $checks[] = ['Geolokacija', (bool)cfg('geo_enabled'), cfg('geo_enabled') ? 'ip-api.com' : 'išjungta'];
     $checks[] = ['LiteSpeed/FPM greitas atsakymas', function_exists('litespeed_finish_request') || function_exists('fastcgi_finish_request'), function_exists('litespeed_finish_request') ? 'litespeed_finish_request' : (function_exists('fastcgi_finish_request') ? 'fastcgi_finish_request' : 'nėra (pikselis šiek tiek lėtesnis)')];
 
