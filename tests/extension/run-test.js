@@ -68,6 +68,27 @@ fs.copyFileSync(path.join(EXT, 'content.css'), path.join(DIR, 'content.css'));
   await page.waitForTimeout(200);
   results.toggleAfter = await tog.innerText();
 
+  // 6) SIUNTIMAS: ar perrašomos VISOS nuorodos ir įdedamas pikselis?
+  // grąžinam sekimą ATGAL Į ĮJUNGTĄ (5 žingsnis jį išjungė)
+  await tog.click({ force: true });
+  await page.waitForTimeout(200);
+  results.toggleBackOn = await tog.innerText();
+  await page.locator('#sendInner').click({ force: true });
+  await page.waitForTimeout(500);
+  results.registered = await page.evaluate(() => window.__registered || null);
+  results.pixelInserted = await page.locator('#body img.mt-px').count();
+  results.rewrittenLinks = await page.evaluate(() =>
+    Array.from(document.querySelectorAll('#body a')).map(a => a.getAttribute('href')));
+
+  // 7) Ar sablonu mygtukas KAIREJE (kad nesidengtu su Mailsuite desineje)?
+  results.tplBtnSide = await page.evaluate(() => {
+    var b = document.querySelector('.mt-tplbar-btn');
+    var bar = document.querySelector('.mt-tplbar');
+    if (!b || !bar) return 'nera';
+    var br = b.getBoundingClientRect(), pr = bar.getBoundingClientRect();
+    return (br.left - pr.left) < (pr.right - br.right) ? 'kaireje' : 'desineje';
+  });
+
   results.errors = errors;
   console.log(JSON.stringify(results, null, 2));
   await browser.close();

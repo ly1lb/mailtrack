@@ -155,7 +155,12 @@
         toggle.parentElement.insertBefore(tplBtn, toggle.nextSibling);
       }
 
-      sendBtn.addEventListener('click', function () { beforeSend(state); }, true);
+      // Siuntimo mygtuką pažymim – paspaudimą pagauna globalus capture klausytojas
+      // (žr. installClickCapture). Tiesioginis listener'is čia nepatikimas: Gmail
+      // aukščiau esančiame konteineryje kviečia stopImmediatePropagation() ir jis
+      // nesuveikia – tada pikselis bei nuorodos NEBŪTŲ įdėti.
+      sendBtn.classList.add('mt-sendbtn');
+      sendBtn.addEventListener('click', function () { beforeSend(state); }, true); // atsarga
       dialog.addEventListener('keydown', function (e) {
         if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') beforeSend(state);
       }, true);
@@ -593,9 +598,20 @@
         }
       }
     }
+    // Siuntimas: mūsų klausytojas ant document capture fazėje suveikia PIRMAS –
+    // anksčiau nei Gmail konteineris spėja sustabdyti įvykį. Įvykio NESTABDOM,
+    // kad Gmail normaliai išsiųstų laišką.
+    function handleSend(e) {
+      var t = e.target;
+      if (!t || !t.closest) return;
+      var sb = t.closest('.mt-sendbtn');
+      if (sb && sb.__mtState) {
+        try { beforeSend(sb.__mtState); } catch (err) { log('send capture: ' + (err && err.message)); }
+      }
+    }
     document.addEventListener('pointerdown', function (e) { handle(e, true); }, true);
     document.addEventListener('mousedown', function (e) { handle(e, false); }, true);
-    document.addEventListener('click', function (e) { handle(e, false); }, true);
+    document.addEventListener('click', function (e) { handleSend(e); handle(e, false); }, true);
   }
   // Registruojam IŠ KARTO (document_start), kad Gmail neužsiregistruotų anksčiau.
   installClickCapture();

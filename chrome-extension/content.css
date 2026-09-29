@@ -48,7 +48,9 @@
 .mt-tpl { color: #1a73e8; }
 
 /* Šablonų juosta virš laiško teksto (kaip Mailsuite „Load template") */
-.mt-tplbar { display: flex; justify-content: flex-end; padding: 4px 0 6px; }
+/* KAIRĖJE – dešinėje pusėje Mailsuite/Mailtrack laiko savo „Load template" mygtuką,
+   todėl ten nesidėtume vienas ant kito. */
+.mt-tplbar { display: flex; justify-content: flex-start; padding: 4px 0 6px; position: relative; z-index: 2; }
 .mt-tplbar-btn {
   display: inline-flex; align-items: center; gap: 6px;
   padding: 6px 12px; border: 1px solid #d0d5dd; border-radius: 8px;

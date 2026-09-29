@@ -216,6 +216,29 @@ if ($path === 'documents' || preg_match('#^documents/(\d+)/delete$#', $path, $m)
     exit;
 }
 
+// ---------- Nuorodų paspaudimai (kaip Mailsuite „Link clicks“) ----------
+if ($path === 'clicks') {
+    $page = max(1, (int)($_GET['p'] ?? 1));
+    $per = 100;
+    $off = ($page - 1) * $per;
+    $showAll = !empty($_GET['all']);
+    $where = $showAll ? '' : ' AND c.ignored = 0';
+    $total = (int)DB::value("SELECT COUNT(*) FROM clicks c JOIN emails e ON e.id = c.email_id WHERE e.user_id = ?$where", [$uid]);
+    $clicks = DB::all(
+        "SELECT c.*, l.url, e.subject, e.recipients, e.id eid
+         FROM clicks c JOIN links l ON l.id = c.link_id JOIN emails e ON e.id = c.email_id
+         WHERE e.user_id = ?$where ORDER BY c.id DESC LIMIT $per OFFSET $off",
+        [$uid]
+    );
+    $topLinks = DB::all(
+        'SELECT l.url, SUM(l.click_count) cnt FROM links l JOIN emails e ON e.id = l.email_id
+         WHERE e.user_id = ? GROUP BY l.url HAVING cnt > 0 ORDER BY cnt DESC LIMIT 15',
+        [$uid]
+    );
+    render('clicks', compact('clicks', 'topLinks', 'total', 'page', 'per', 'showAll'));
+    exit;
+}
+
 // ---------- Šablonai ----------
 if ($path === 'templates' || preg_match('#^templates/(\d+)/(delete)$#', $path, $m)) {
     if ($isPost && isset($m[1])) {

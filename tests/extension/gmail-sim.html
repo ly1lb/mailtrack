@@ -4,7 +4,7 @@
 <!-- Imituojam Gmail rašymo langą su ĮDĖTAIS role="button" (dėl to dubliavosi) -->
 <div role="dialog" id="compose">
   <input name="subjectbox" value="">
-  <div aria-label="Laiško turinys" contenteditable="true" id="body"><div>Pagarbiai<br>Lukas</div></div>
+  <div aria-label="Laiško turinys" contenteditable="true" id="body"><div>Pagarbiai<br>Lukas<br><a href="https://www.lukasbartkus.lt">www.lukasbartkus.lt</a><br><a href="https://pavyzdys.lt/kainos">Kainos</a></div></div>
   <div id="toolbar">
     <!-- išorinis wrapper su data-tooltip IR vidinis su aria-label = 2 atitikmenys -->
     <div role="button" data-tooltip="Siųsti ‪(Ctrl+Enter)‬" id="sendOuter">
@@ -39,6 +39,9 @@ window.chrome = {
       setTimeout(function () {
         if (msg.type === 'config') {
           cb({ ok: true, cfg: { serverUrl: 'https://track.test', apiKey: 'k'.repeat(30), linkSecret: 'abc', trackByDefault: true, trackLinks: true, desktopNotify: true } });
+        } else if (msg.type === 'register') {
+          window.__registered = msg.payload;
+          cb({ ok: true });
         } else if (msg.type === 'api' && msg.path === 'templates') {
           cb({ ok: true, data: { ok: true, templates: [
             { id: 1, name: 'Pasiūlymas', subject: 'Fotosesijos pasiūlymas', body_html: '<p>Sveiki, siunčiu pasiūlymą.</p>' },

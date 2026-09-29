@@ -4,6 +4,7 @@ $cur = $GLOBALS['path'] ?? '';
 $nav = [
     '' => 'Laiškai',
     'new' => 'Naujas',
+    'clicks' => 'Nuorodos',
     'templates' => 'Šablonai',
     'documents' => 'Dokumentai',
     'setup' => 'Įdiegimas',
