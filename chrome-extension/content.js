@@ -104,6 +104,12 @@
         // gali būti kitas mygtukas su tokiu pat pavadinimu – tik su kūnu laikom rašymo langu
         return;
       }
+      // Gmail turi įdėtų role="button" elementų su ta pačia žyme (išorinis ir vidinis),
+      // todėl be šios patikros mygtukai atsirasdavo po du. Vienam rašymo langui – vienas.
+      if (dialog.querySelector('.mt-track-toggle')) {
+        sendBtn.__mtDecorated = true;
+        return;
+      }
       sendBtn.__mtDecorated = true;
 
       var state = { on: ready && CFG.trackByDefault, dialog: dialog, body: body };
@@ -488,35 +494,40 @@
   function installClickCapture() {
     if (window.__mtClickCaptureInstalled) return;
     window.__mtClickCaptureInstalled = true;
-    document.addEventListener('click', function (e) {
+
+    // Reaguojam į pointerdown – jis įvyksta anksčiausiai, dar prieš mousedown/click,
+    // todėl Gmail nespėja paspaudimo "suvalgyti". click'ą tik nuslopinam.
+    function handle(e, act) {
       var t = e.target;
       if (!t || !t.closest) return;
-      var tpl = t.closest('.mt-tpl');
-      if (tpl) {
-        e.stopPropagation();
-        e.preventDefault();
-        if (!ready) { alert('MailTrack Pro: spauskite plėtinio ikoną ir įveskite serverio adresą bei API raktą.'); return; }
-        openTemplateMenu(tpl, tpl.__mtState);
+      var hit = t.closest('.mt-tpl, .mt-track-toggle, .mt-fab');
+      if (!hit) return;
+      e.stopPropagation();
+      if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+      e.preventDefault();
+      if (!act) return;
+      if (hit.classList.contains('mt-fab')) { togglePanel(); return; }
+      if (!ready) {
+        alert('MailTrack Pro: spauskite plėtinio ikoną (🧩 viršuje) ir įveskite serverio adresą bei API raktą.');
         return;
       }
-      var tog = t.closest('.mt-track-toggle');
-      if (tog) {
-        e.stopPropagation();
-        e.preventDefault();
-        if (!ready) { alert('MailTrack Pro: spauskite plėtinio ikoną ir įveskite serverio adresą bei API raktą.'); return; }
-        if (tog.__mtState) {
-          tog.__mtState.on = !tog.__mtState.on;
-          if (tog.__mtPaint) tog.__mtPaint();
+      if (hit.classList.contains('mt-tpl')) {
+        openTemplateMenu(hit, hit.__mtState);
+      } else if (hit.classList.contains('mt-track-toggle')) {
+        if (hit.__mtState) {
+          hit.__mtState.on = !hit.__mtState.on;
+          if (hit.__mtPaint) hit.__mtPaint();
         }
-        return;
       }
-      var fab = t.closest('.mt-fab');
-      if (fab) { e.stopPropagation(); e.preventDefault(); togglePanel(); }
-    }, true);
+    }
+    document.addEventListener('pointerdown', function (e) { handle(e, true); }, true);
+    document.addEventListener('mousedown', function (e) { handle(e, false); }, true);
+    document.addEventListener('click', function (e) { handle(e, false); }, true);
   }
+  // Registruojam IŠ KARTO (document_start), kad Gmail neužsiregistruotų anksčiau.
+  installClickCapture();
 
   function boot() {
-    installClickCapture();
     loadCfg(function () {
       observer.observe(document.body, { childList: true, subtree: true });
       decorateComposes();

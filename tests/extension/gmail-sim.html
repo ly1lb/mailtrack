@@ -1,0 +1,58 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Gmail sim</title></head>
+<body>
+<!-- Imituojam Gmail rašymo langą su ĮDĖTAIS role="button" (dėl to dubliavosi) -->
+<div role="dialog" id="compose">
+  <input name="subjectbox" value="">
+  <div aria-label="Laiško turinys" contenteditable="true" id="body"><div>Pagarbiai<br>Lukas</div></div>
+  <div id="toolbar">
+    <!-- išorinis wrapper su data-tooltip IR vidinis su aria-label = 2 atitikmenys -->
+    <div role="button" data-tooltip="Siųsti ‪(Ctrl+Enter)‬" id="sendOuter">
+      <div role="button" aria-label="Siųsti ‪(Ctrl+Enter)‬" id="sendInner">Siųsti</div>
+    </div>
+    <div role="button" aria-label="Daugiau siuntimo parinkčių" id="sendMore">▾</div>
+  </div>
+</div>
+
+<script>
+// ---- Gmail agresyviai perima paspaudimus savo įrankių juostoje ----
+var tb = document.getElementById('toolbar');
+['pointerdown','mousedown','click'].forEach(function (t) {
+  tb.addEventListener(t, function (e) {
+    e.stopPropagation();
+    if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+    window.__gmailSwallowed = (window.__gmailSwallowed || 0) + 1;
+  }, true); // CAPTURE – kaip tikras Gmail
+});
+
+// ---- Fake chrome.* API plėtiniui ----
+window.chrome = {
+  runtime: {
+    lastError: null,
+    getManifest: function () { return { version: '1.0.0' }; },
+    sendMessage: function (msg, cb) {
+      setTimeout(function () {
+        if (msg.type === 'config') {
+          cb({ ok: true, cfg: { serverUrl: 'https://track.test', apiKey: 'k'.repeat(30), linkSecret: 'abc', trackByDefault: true, trackLinks: true, desktopNotify: true } });
+        } else if (msg.type === 'api' && msg.path === 'templates') {
+          cb({ ok: true, data: { ok: true, templates: [
+            { id: 1, name: 'Pasiūlymas', subject: 'Fotosesijos pasiūlymas', body_html: '<p>Sveiki, siunčiu pasiūlymą.</p>' },
+            { id: 2, name: 'Priminimas', subject: '', body_html: '<p>Primenu apie laišką.</p>' }
+          ] } });
+        } else if (msg.type === 'api' && String(msg.path).indexOf('activity') === 0) {
+          cb({ ok: true, data: { ok: true, items: [], opens_today: 0, tracked: 0 } });
+        } else if (msg.type === 'api' && String(msg.path).indexOf('emails') === 0) {
+          cb({ ok: true, data: { ok: true, emails: [] } });
+        } else {
+          cb({ ok: true, data: { ok: true } });
+        }
+      }, 5);
+    },
+    openOptionsPage: function () {}
+  },
+  storage: { sync: { get: function (d, cb) { cb(d); } }, onChanged: { addListener: function () {} } }
+};
+</script>
+<script src="sha256.js"></script>
+<script src="content-test.js"></script>
+</body></html>
