@@ -93,7 +93,7 @@ final class Tracker
         $ua = mb_substr((string)($_SERVER['HTTP_USER_AGENT'] ?? ''), 0, 500);
         $ip = client_ip();
         $p = UserAgent::parse($ua);
-        $reason = self::ignoreReason($user, $email, $ip, $ua, $p, 'opens', 'opened_at');
+        $cl = self::classify($user, $email, $ip, $ua, $p, 'opens', 'opened_at');
 
         $geo = ['country' => '', 'city' => ''];
         if ($p['proxy'] === '' && !$p['bot']) {
@@ -110,11 +110,11 @@ final class Tracker
             'proxy' => $p['proxy'],
             'country' => $geo['country'],
             'city' => $geo['city'],
-            'ignored' => $reason === '' ? 0 : 1,
-            'ignore_reason' => $reason,
+            'ignored' => $cl['ignored'],
+            'ignore_reason' => $cl['reason'],
         ]);
-        if ($reason !== '') {
-            Logger::debug('Atidarymas ignoruotas', ['email' => $email['id'], 'reason' => $reason]);
+        if ($cl['ignored']) {
+            Logger::debug('Atidarymas ignoruotas', ['email' => $email['id'], 'reason' => $cl['reason']]);
             return;
         }
         self::recount((int)$email['id']);
@@ -122,6 +122,9 @@ final class Tracker
         Logger::info('Laiškas atidarytas', ['email' => $email['id'], 'count' => $count, 'client' => $p['client']]);
 
         $where = self::whereText($p, $geo);
+        if ($cl['reason'] !== '') {
+            $where .= "\n" . $cl['reason'];
+        }
         $subj = $email['subject'] !== '' ? $email['subject'] : '(be temos)';
         $to = recipients_text($email['recipients']);
         $push = $user['notify_mode'] === 'every' || $count === 1;
@@ -163,7 +166,7 @@ final class Tracker
         $ua = mb_substr((string)($_SERVER['HTTP_USER_AGENT'] ?? ''), 0, 500);
         $ip = client_ip();
         $p = UserAgent::parse($ua);
-        $reason = self::ignoreReason($user, $email, $ip, $ua, $p, 'clicks', 'clicked_at', false);
+        $reason = self::classify($user, $email, $ip, $ua, $p, 'clicks', 'clicked_at', false)['reason_if_ignored'];
         $geo = $p['bot'] ? ['country' => '', 'city' => ''] : Geo::lookup($ip);
         DB::insert('clicks', [
             'email_id' => $email['id'],
@@ -247,28 +250,30 @@ final class Tracker
         return (bool)DB::value('SELECT COUNT(*) FROM user_ips WHERE user_id = ? AND ip = ?', [$userId, $ip]);
     }
 
-    private static function ignoreReason(array $user, array $email, string $ip, string $ua, array $p, string $table, string $col, bool $checkEarly = true): string
+    /**
+     * Įvertina atidarymą/paspaudimą.
+     * @return array{ignored:int, reason:string, reason_if_ignored:string}
+     *   ignored=1 – neskaičiuojamas; ignored=0 su reason – skaičiuojamas, bet pažymėtas
+     *   (pvz. galimas Gmail prefetch – rodom kaip Mailsuite, tik sąžiningai pažymėtą).
+     */
+    private static function classify(array $user, array $email, string $ip, string $ua, array $p, string $table, string $col, bool $checkEarly = true): array
     {
+        $drop = fn(string $r) => ['ignored' => 1, 'reason' => $r, 'reason_if_ignored' => $r];
+        $keep = fn(string $r = '') => ['ignored' => 0, 'reason' => $r, 'reason_if_ignored' => ''];
+
         $age = time() - strtotime($email['created_at'] . ' UTC');
         if ($checkEarly && $age < (int)$user['ignore_seconds']) {
-            return 'Per anksti po išsiuntimo (tikėtina – jūsų peržiūra)';
+            return $drop('Per anksti po išsiuntimo (tikėtina – jūsų peržiūra)');
         }
         $sv = DB::value('SELECT COUNT(*) FROM selfviews WHERE email_id = ? AND created_at >= ?', [$email['id'], gmdate('Y-m-d H:i:s', time() - self::SELFVIEW_WINDOW)]);
         if ($sv && $table === 'opens') {
-            return 'Jūsų peržiūra (plėtinys/priedas)';
+            return $drop('Jūsų peržiūra (plėtinys/priedas)');
         }
         if (self::isOwnIp((int)$user['id'], $ip)) {
-            return 'Jūsų IP adresas';
+            return $drop('Jūsų IP adresas');
         }
         if ($p['bot']) {
-            return 'Botas / saugumo skeneris';
-        }
-        // Gmail iš anksto užkrauna (prefetch) visus paveikslėlius vos laiškui atkeliavus,
-        // jei gavėjas turi aktyvią Gmail sesiją – pikselis suveikia BE žmogaus.
-        // Tai įvyksta paprastai per 1–2 min po išsiuntimo, todėl tokius proxy
-        // atidarymus ignoruojame (tikras atidarymas užfiksuojamas vėliau).
-        if ($table === 'opens' && $p['proxy'] !== '' && $age < (int)($user['prefetch_seconds'] ?? 150)) {
-            return 'Gmail išankstinis užkrovimas (prefetch) – ne tikras atidarymas';
+            return $drop('Botas / saugumo skeneris');
         }
         // Proxy IP kaskart skiriasi, o laiškas gali būti užkraunamas kelis kartus,
         // todėl proxy atidarymus sujungiam lange ignoruodami IP/UA.
@@ -278,7 +283,7 @@ final class Tracker
                 [$email['id'], $p['proxy'], gmdate('Y-m-d H:i:s', time() - self::PROXY_DEDUP_WINDOW)]
             );
             if ($dupProxy) {
-                return 'Pasikartojanti proxy užklausa';
+                return $drop('Pasikartojanti proxy užklausa');
             }
         }
         $dup = DB::value(
@@ -286,9 +291,23 @@ final class Tracker
             [$email['id'], $ip, $ua, gmdate('Y-m-d H:i:s', time() - self::DUPLICATE_WINDOW)]
         );
         if ($dup) {
-            return 'Pasikartojanti užklausa';
+            return $drop('Pasikartojanti užklausa');
         }
-        return '';
+
+        // Gmail iš anksto užkrauna paveikslėlius vos laiškui atkeliavus (jei gavėjas
+        // turi aktyvią Gmail sesiją) – pikselis suveikia be žmogaus. Kadangi vėliau
+        // Google gali paveikslėlį kešuoti, visiškas ignoravimas rizikuoja prarasti
+        // vienintelį signalą. Todėl pagal nutylėjimą SKAIČIUOJAM, bet PAŽYMIM.
+        if ($table === 'opens' && $p['proxy'] !== '' && $age < (int)($user['prefetch_seconds'] ?? 150)) {
+            $mode = (string)($user['prefetch_mode'] ?? 'flag');
+            if ($mode === 'ignore') {
+                return $drop('Gmail išankstinis užkrovimas (prefetch) – neskaičiuota');
+            }
+            if ($mode === 'flag') {
+                return $keep('⚠ Galimas Gmail prefetch – gavėjas galėjo dar neatidaryti');
+            }
+        }
+        return $keep();
     }
 
     private static function whereText(array $p, array $geo): string

@@ -18,9 +18,17 @@ $tzs = DateTimeZone::listIdentifiers();
     <input type="number" name="ignore_seconds" min="0" max="600" value="<?= (int)$u['ignore_seconds'] ?>">
     <div class="help">Gmail iškart parodo išsiųstą laišką jums pačiam – tai nėra gavėjo atidarymas. Rekomenduojama 15–30 s.</div>
 
-    <label>Gmail „prefetch“ langas (sek.)</label>
+    <h3>Gmail „prefetch“ (klaidingi atidarymai)</h3>
+    <div class="help">Gmail iš anksto užkrauna laiško paveikslėlius vos jam atkeliavus, jei gavėjas turi atidarytą Gmail – pikselis suveikia <u>be žmogaus</u>, dažniausiai per 1–2 min po išsiuntimo. Taip elgiasi visi sekikliai, įskaitant Mailtrack/Mailsuite (jie tokį atidarymą tiesiog parodo).</div>
+    <label>Ką daryti su tokiais atidarymais</label>
+    <select name="prefetch_mode">
+      <option value="flag" <?= ($u['prefetch_mode'] ?? 'flag') === 'flag' ? 'selected' : '' ?>>Rodyti, bet pažymėti „galimas prefetch“ (rekomenduojama)</option>
+      <option value="ignore" <?= ($u['prefetch_mode'] ?? '') === 'ignore' ? 'selected' : '' ?>>Neskaičiuoti visai (tiksliau, bet gali praleisti)</option>
+      <option value="off" <?= ($u['prefetch_mode'] ?? '') === 'off' ? 'selected' : '' ?>>Nieko nedaryti (kaip Mailtrack/Mailsuite)</option>
+    </select>
+    <label>„Prefetch“ langas (sek.)</label>
     <input type="number" name="prefetch_seconds" min="0" max="1800" value="<?= (int)($u['prefetch_seconds'] ?? 150) ?>">
-    <div class="help"><b>Svarbu.</b> Gmail iš anksto užkrauna laiško paveikslėlius vos jam atkeliavus (jei gavėjas turi atidarytą Gmail) – pikselis suveikia <u>be žmogaus</u>, dažniausiai per 1–2 min. Šiame lange gauti atidarymai <b>per Gmail proxy</b> nebus skaičiuojami. Rekomenduojama 150 s. Padidinkite, jei vis tiek rodo „atidaryta“ iškart po išsiuntimo; sumažinkite, jei praleidžia labai greitus tikrus atidarymus. Kitų klientų (Apple Mail, Outlook) atidarymams netaikoma.</div>
+    <div class="help">Per tiek sekundžių po išsiuntimo gauti atidarymai <b>per Gmail proxy</b> laikomi galimu prefetch. Rekomenduojama 150 s. Kitų klientų (Apple Mail, Outlook) atidarymams netaikoma niekada.</div>
     <label class="chk"><input type="checkbox" name="auto_ignore_ips" <?= $u['auto_ignore_ips'] ? 'checked' : '' ?>> Automatiškai įsiminti mano IP adresus (iš skydelio ir plėtinio) ir jų atidarymų neskaičiuoti</label>
   </div>
 

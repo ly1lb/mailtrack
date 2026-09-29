@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS users (
   last_report_date VARCHAR(10) NOT NULL DEFAULT '',
   ignore_seconds INT NOT NULL DEFAULT 20,
   prefetch_seconds INT NOT NULL DEFAULT 150,
+  prefetch_mode VARCHAR(10) NOT NULL DEFAULT 'flag',
   auto_ignore_ips TINYINT NOT NULL DEFAULT 1,
   created_at DATETIME NOT NULL,
   last_login_at DATETIME NULL

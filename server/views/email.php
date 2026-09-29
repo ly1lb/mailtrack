@@ -67,7 +67,8 @@ Gmail gavėjų atidarymai eina per Google Image Proxy – todėl tikslios vietos
       <td><?= e(trim($o['city'] . ($o['city'] && $o['country'] ? ', ' : '') . $o['country']) ?: '—') ?></td>
       <td class="hide-sm mono"><?= e($o['ip']) ?></td>
       <td>
-        <?php if ($o['ignored']): ?><span class="badge"><?= e($o['ignore_reason']) ?></span><?php endif; ?>
+        <?php if ($o['ignored']): ?><span class="badge"><?= e($o['ignore_reason']) ?></span>
+        <?php elseif ($o['ignore_reason'] !== ''): ?><span class="badge warn" title="Įskaičiuota, bet gali būti ne tikras atidarymas"><?= e($o['ignore_reason']) ?></span><?php endif; ?>
         <form method="post" action="<?= e(base_url("email/$eid/toggle-open")) ?>" class="inline"><?= csrf_field() ?><input type="hidden" name="open_id" value="<?= (int)$o['id'] ?>"><button class="btn sm"><?= $o['ignored'] ? 'Įskaičiuoti' : 'Ignoruoti' ?></button></form>
       </td>
     </tr>

@@ -110,7 +110,7 @@
       sendBtn.__mtState = state;
 
       var toggle = document.createElement('div');
-      toggle.className = 'mt-toggle';
+      toggle.className = 'mt-toggle mt-track-toggle';
       toggle.setAttribute('role', 'button');
       toggle.tabIndex = 0;
       function paint() {
@@ -119,11 +119,10 @@
         toggle.innerHTML = '<span class="mt-tick">' + (state.on ? '✓✓' : '✓') + '</span><span class="mt-lbl">' + (state.on ? 'Sekama' : 'Sekti') + '</span>';
       }
       paint();
-      toggle.addEventListener('click', function (e) {
-        e.stopPropagation(); e.preventDefault();
-        if (!ready) { alert('MailTrack Pro: spauskite plėtinio ikoną ir įveskite serverio adresą bei API raktą.'); return; }
-        state.on = !state.on; paint();
-      });
+      // Paspaudimus gaudom globaliai capture fazėje (žr. žemiau) – Gmail savo
+      // įrankių juostoje perima click'us ir įprastas listener'is nesuveiktų.
+      toggle.__mtPaint = paint;
+      toggle.__mtState = state;
       if (sendBtn.parentElement) sendBtn.parentElement.insertBefore(toggle, sendBtn.nextSibling);
 
       // Šablonų mygtukas
@@ -133,7 +132,7 @@
       tplBtn.tabIndex = 0;
       tplBtn.innerHTML = '<span class="mt-lbl">Šablonai ▾</span>';
       tplBtn.title = 'Įterpti laiško šabloną';
-      tplBtn.addEventListener('click', function (e) { e.stopPropagation(); e.preventDefault(); openTemplateMenu(tplBtn, state); });
+      tplBtn.__mtState = state;
       if (toggle.parentElement) toggle.parentElement.insertBefore(tplBtn, toggle.nextSibling);
 
       sendBtn.addEventListener('click', function () { beforeSend(state); }, true);
@@ -190,7 +189,7 @@
     fabEl.className = 'mt-fab';
     fabEl.title = 'MailTrack Pro – veikla';
     fabEl.innerHTML = '<span class="mt-fab-tick">✓✓</span>';
-    fabEl.addEventListener('click', togglePanel);
+    // click'ą tvarko globalus capture klausytojas (installClickCapture)
     document.body.appendChild(fabEl);
   }
 
@@ -483,7 +482,41 @@
     }, 250);
   });
 
+  /* Gmail savo įrankių juostoje perima paspaudimus (stopPropagation capture fazėje),
+     todėl mūsų mygtukų click'ai nepasiekdavo jų pačių listener'ių. Sprendimas –
+     vienas klausytojas ant document CAPTURE fazėje: jis suveikia PIRMAS. */
+  function installClickCapture() {
+    if (window.__mtClickCaptureInstalled) return;
+    window.__mtClickCaptureInstalled = true;
+    document.addEventListener('click', function (e) {
+      var t = e.target;
+      if (!t || !t.closest) return;
+      var tpl = t.closest('.mt-tpl');
+      if (tpl) {
+        e.stopPropagation();
+        e.preventDefault();
+        if (!ready) { alert('MailTrack Pro: spauskite plėtinio ikoną ir įveskite serverio adresą bei API raktą.'); return; }
+        openTemplateMenu(tpl, tpl.__mtState);
+        return;
+      }
+      var tog = t.closest('.mt-track-toggle');
+      if (tog) {
+        e.stopPropagation();
+        e.preventDefault();
+        if (!ready) { alert('MailTrack Pro: spauskite plėtinio ikoną ir įveskite serverio adresą bei API raktą.'); return; }
+        if (tog.__mtState) {
+          tog.__mtState.on = !tog.__mtState.on;
+          if (tog.__mtPaint) tog.__mtPaint();
+        }
+        return;
+      }
+      var fab = t.closest('.mt-fab');
+      if (fab) { e.stopPropagation(); e.preventDefault(); togglePanel(); }
+    }, true);
+  }
+
   function boot() {
+    installClickCapture();
     loadCfg(function () {
       observer.observe(document.body, { childList: true, subtree: true });
       decorateComposes();
