@@ -283,10 +283,19 @@
     menu.className = 'mt-menu';
     menu.textContent = 'Kraunama…';
     document.body.appendChild(menu);
-    var r = anchor.getBoundingClientRect();
-    menu.style.left = Math.max(8, r.left) + 'px';
-    menu.style.top = (r.top - 8) + 'px';
-    menu.style.transform = 'translateY(-100%)';
+    function place() {
+      var r = anchor.getBoundingClientRect();
+      var mh = menu.offsetHeight || 200;
+      var left = Math.min(Math.max(8, r.left), window.innerWidth - 360);
+      menu.style.left = left + 'px';
+      // virš mygtuko, jei telpa; kitaip – po juo
+      if (r.top - mh - 8 > 8) {
+        menu.style.top = (r.top - 8 - mh) + 'px';
+      } else {
+        menu.style.top = Math.min(r.bottom + 8, window.innerHeight - mh - 8) + 'px';
+      }
+    }
+    place();
     apiGet('templates', function (d) {
       menu.innerHTML = '';
       var list = (d && d.templates) || [];
@@ -308,6 +317,7 @@
         });
         menu.appendChild(it);
       });
+      place();
     });
     setTimeout(function () {
       document.addEventListener('click', function close(ev) {
