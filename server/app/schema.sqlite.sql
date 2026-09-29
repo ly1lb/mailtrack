@@ -1,0 +1,175 @@
+CREATE TABLE IF NOT EXISTS users (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  email VARCHAR(190) NOT NULL UNIQUE,
+  name VARCHAR(190) NOT NULL DEFAULT '',
+  password_hash VARCHAR(255) NOT NULL,
+  role VARCHAR(10) NOT NULL DEFAULT 'user',
+  api_key VARCHAR(64) NOT NULL UNIQUE,
+  link_secret VARCHAR(64) NOT NULL,
+  timezone VARCHAR(64) NOT NULL DEFAULT 'Europe/Vilnius',
+  notify_email TINYINT NOT NULL DEFAULT 1,
+  notify_telegram TINYINT NOT NULL DEFAULT 0,
+  notify_mode VARCHAR(10) NOT NULL DEFAULT 'first',
+  notify_clicks TINYINT NOT NULL DEFAULT 1,
+  telegram_chat_id VARCHAR(64) NOT NULL DEFAULT '',
+  webhook_url VARCHAR(500) NOT NULL DEFAULT '',
+  daily_report TINYINT NOT NULL DEFAULT 1,
+  report_hour TINYINT NOT NULL DEFAULT 8,
+  last_report_date VARCHAR(10) NOT NULL DEFAULT '',
+  ignore_seconds INT NOT NULL DEFAULT 20,
+  auto_ignore_ips TINYINT NOT NULL DEFAULT 1,
+  created_at DATETIME NOT NULL,
+  last_login_at DATETIME NULL
+);
+
+CREATE TABLE IF NOT EXISTS emails (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INT NOT NULL,
+  uid VARCHAR(32) NOT NULL UNIQUE,
+  subject VARCHAR(500) NOT NULL DEFAULT '',
+  recipients TEXT NULL,
+  source VARCHAR(20) NOT NULL DEFAULT 'manual',
+  created_at DATETIME NOT NULL,
+  open_count INT NOT NULL DEFAULT 0,
+  click_count INT NOT NULL DEFAULT 0,
+  first_open_at DATETIME NULL,
+  last_open_at DATETIME NULL,
+  reminder_at DATETIME NULL,
+  reminder_mode VARCHAR(10) NOT NULL DEFAULT 'no_open',
+  reminder_sent TINYINT NOT NULL DEFAULT 0,
+  archived TINYINT NOT NULL DEFAULT 0,
+  note VARCHAR(500) NOT NULL DEFAULT ''
+);
+
+CREATE INDEX IF NOT EXISTS idx_emails_user ON emails (user_id, created_at);
+
+CREATE INDEX IF NOT EXISTS idx_emails_reminder ON emails (reminder_sent, reminder_at);
+
+CREATE TABLE IF NOT EXISTS opens (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  email_id INT NOT NULL,
+  opened_at DATETIME NOT NULL,
+  ip VARCHAR(45) NOT NULL DEFAULT '',
+  user_agent VARCHAR(500) NOT NULL DEFAULT '',
+  client VARCHAR(60) NOT NULL DEFAULT '',
+  device VARCHAR(20) NOT NULL DEFAULT '',
+  os VARCHAR(40) NOT NULL DEFAULT '',
+  proxy VARCHAR(40) NOT NULL DEFAULT '',
+  country VARCHAR(80) NOT NULL DEFAULT '',
+  city VARCHAR(120) NOT NULL DEFAULT '',
+  ignored TINYINT NOT NULL DEFAULT 0,
+  ignore_reason VARCHAR(120) NOT NULL DEFAULT ''
+);
+
+CREATE INDEX IF NOT EXISTS idx_opens_email ON opens (email_id, opened_at);
+
+CREATE TABLE IF NOT EXISTS links (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  email_id INT NOT NULL,
+  idx INT NOT NULL,
+  url TEXT NOT NULL,
+  click_count INT NOT NULL DEFAULT 0,
+  created_at DATETIME NOT NULL,
+  UNIQUE (email_id, idx)
+);
+
+CREATE TABLE IF NOT EXISTS clicks (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  email_id INT NOT NULL,
+  link_id INT NOT NULL,
+  clicked_at DATETIME NOT NULL,
+  ip VARCHAR(45) NOT NULL DEFAULT '',
+  user_agent VARCHAR(500) NOT NULL DEFAULT '',
+  client VARCHAR(60) NOT NULL DEFAULT '',
+  device VARCHAR(20) NOT NULL DEFAULT '',
+  os VARCHAR(40) NOT NULL DEFAULT '',
+  country VARCHAR(80) NOT NULL DEFAULT '',
+  city VARCHAR(120) NOT NULL DEFAULT '',
+  ignored TINYINT NOT NULL DEFAULT 0,
+  ignore_reason VARCHAR(120) NOT NULL DEFAULT ''
+);
+
+CREATE INDEX IF NOT EXISTS idx_clicks_email ON clicks (email_id, clicked_at);
+
+CREATE TABLE IF NOT EXISTS documents (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INT NOT NULL,
+  uid VARCHAR(32) NOT NULL UNIQUE,
+  title VARCHAR(255) NOT NULL DEFAULT '',
+  filename VARCHAR(255) NOT NULL,
+  stored_name VARCHAR(255) NOT NULL,
+  mime VARCHAR(100) NOT NULL DEFAULT 'application/octet-stream',
+  size INT NOT NULL DEFAULT 0,
+  view_count INT NOT NULL DEFAULT 0,
+  last_view_at DATETIME NULL,
+  created_at DATETIME NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_docs_user ON documents (user_id);
+
+CREATE TABLE IF NOT EXISTS doc_views (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  document_id INT NOT NULL,
+  viewed_at DATETIME NOT NULL,
+  ip VARCHAR(45) NOT NULL DEFAULT '',
+  user_agent VARCHAR(500) NOT NULL DEFAULT '',
+  device VARCHAR(20) NOT NULL DEFAULT '',
+  os VARCHAR(40) NOT NULL DEFAULT '',
+  country VARCHAR(80) NOT NULL DEFAULT '',
+  city VARCHAR(120) NOT NULL DEFAULT ''
+);
+
+CREATE INDEX IF NOT EXISTS idx_dv_doc ON doc_views (document_id);
+
+CREATE TABLE IF NOT EXISTS notifications (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INT NOT NULL,
+  type VARCHAR(20) NOT NULL,
+  email_id INT NULL,
+  document_id INT NULL,
+  title VARCHAR(255) NOT NULL,
+  body VARCHAR(1000) NOT NULL DEFAULT '',
+  created_at DATETIME NOT NULL,
+  is_read TINYINT NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_notif_user ON notifications (user_id, id);
+
+CREATE TABLE IF NOT EXISTS selfviews (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  email_id INT NOT NULL,
+  created_at DATETIME NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_sv_email ON selfviews (email_id, created_at);
+
+CREATE TABLE IF NOT EXISTS user_ips (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INT NOT NULL,
+  ip VARCHAR(45) NOT NULL,
+  note VARCHAR(120) NOT NULL DEFAULT '',
+  created_at DATETIME NOT NULL,
+  last_seen_at DATETIME NOT NULL,
+  UNIQUE (user_id, ip)
+);
+
+CREATE TABLE IF NOT EXISTS geo_cache (
+  ip VARCHAR(45) NOT NULL PRIMARY KEY,
+  country VARCHAR(80) NOT NULL DEFAULT '',
+  city VARCHAR(120) NOT NULL DEFAULT '',
+  created_at DATETIME NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS login_attempts (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  ip VARCHAR(45) NOT NULL,
+  email VARCHAR(190) NOT NULL DEFAULT '',
+  created_at DATETIME NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_la_ip ON login_attempts (ip, created_at);
+
+CREATE TABLE IF NOT EXISTS kv (
+  k VARCHAR(64) NOT NULL PRIMARY KEY,
+  v TEXT NULL
+);

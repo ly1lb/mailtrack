@@ -1,0 +1,42 @@
+{
+  "timeZone": "Europe/Vilnius",
+  "exceptionLogging": "STACKDRIVER",
+  "runtimeVersion": "V8",
+  "oauthScopes": [
+    "https://www.googleapis.com/auth/gmail.addons.execute",
+    "https://www.googleapis.com/auth/gmail.addons.current.action.compose",
+    "https://www.googleapis.com/auth/gmail.addons.current.message.readonly",
+    "https://www.googleapis.com/auth/script.external_request",
+    "https://www.googleapis.com/auth/userinfo.email"
+  ],
+  "urlFetchWhitelist": [
+    "https://track.example.com/"
+  ],
+  "addOns": {
+    "common": {
+      "name": "MailTrack Pro",
+      "logoUrl": "https://track.example.com/assets/icon-192.png",
+      "useLocaleFromApp": true,
+      "homepageTrigger": {
+        "runFunction": "onHomepage"
+      }
+    },
+    "gmail": {
+      "composeTrigger": {
+        "selectActions": [
+          {
+            "text": "Įterpti sekimą",
+            "runFunction": "onComposeInsertPixel"
+          }
+        ],
+        "draftAccess": "METADATA"
+      },
+      "contextualTriggers": [
+        {
+          "unconditional": {},
+          "onTriggerFunction": "onGmailMessageOpen"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="lt">
+<head>
+<meta charset="utf-8">
+<style>
+  body { font: 13px/1.5 system-ui, Arial, sans-serif; width: 300px; margin: 0; color: #1f2937; }
+  header { background: #2a78d6; color: #fff; padding: 12px 14px; font-weight: 600; }
+  .body { padding: 14px; }
+  .row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; }
+  .stat { font-size: 22px; font-weight: 700; }
+  .muted { color: #6b7280; }
+  button, a.btn { display: inline-block; margin-top: 8px; padding: 7px 12px; border: 1px solid #d0d5dd; border-radius: 8px; background: #fff; color: #1f2937; font: inherit; cursor: pointer; text-decoration: none; }
+  a.btn.primary { background: #2a78d6; border-color: #2a78d6; color: #fff; }
+  .switch { display: flex; gap: 8px; align-items: center; }
+  .err { background: #fde8e7; color: #b3261e; padding: 8px 10px; border-radius: 8px; font-size: 12px; margin-top: 8px; }
+  ul { padding-left: 16px; margin: 6px 0; } li { font-size: 12px; color: #6b7280; }
+</style>
+</head>
+<body>
+<header>✓✓ MailTrack Pro</header>
+<div class="body" id="body">
+  <div id="unconf" style="display:none">
+    <p>Plėtinys dar nesukonfigūruotas.</p>
+    <a class="btn primary" id="openOpts">Įvesti serverį ir API raktą</a>
+  </div>
+  <div id="conf" style="display:none">
+    <div class="row"><span class="muted">Prisijungta</span><b id="email">—</b></div>
+    <div class="row switch"><label class="switch"><input type="checkbox" id="trackByDefault"> Sekti naujus laiškus</label></div>
+    <div class="row"><a class="btn primary" id="dash" target="_blank">Atidaryti skydelį</a> <a class="btn" id="openOpts2">Nustatymai</a></div>
+    <div id="errbox"></div>
+  </div>
+</div>
+<script src="popup.js"></script>
+</body>
+</html>

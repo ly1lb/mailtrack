@@ -1,0 +1,10 @@
+# Runtime / secrets – nekelti į git
+server/config.php
+server/data/install.lock
+server/data/*.sqlite
+server/data/logs/*.log
+server/data/uploads/*
+!server/data/uploads/.gitkeep
+server/data/sessions/
+server/data/cron.lock
+*.DS_Store

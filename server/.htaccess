@@ -1,0 +1,32 @@
+# MailTrack Pro – Hostinger (LiteSpeed / Apache)
+Options -Indexes
+DirectoryIndex index.php
+
+<IfModule mod_rewrite.c>
+RewriteEngine On
+
+# Priverstinis HTTPS (Hostinger hPanel taip pat turi "Force HTTPS" jungiklį).
+# Jei naudojate Cloudflare "Flexible" SSL – šias 2 eilutes užkomentuokite.
+RewriteCond %{HTTPS} off
+RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# Draudžiam prieigą prie vidinių failų
+RewriteRule ^(app|views|data)(/|$) - [F,L]
+RewriteRule ^(config\.php|config\.sample\.php|install\.lock)$ - [F,L]
+
+# Esami failai (assets, downloads, cron.php, install.php) – tiesiogiai
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteRule ^ - [L]
+
+# Visa kita – į index.php
+RewriteRule ^ index.php [QSA,L]
+</IfModule>
+
+<IfModule mod_headers.c>
+Header always set X-Content-Type-Options "nosniff"
+</IfModule>
+
+<IfModule mod_php.c>
+php_value upload_max_filesize 25M
+php_value post_max_size 26M
+</IfModule>

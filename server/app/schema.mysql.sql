@@ -1,0 +1,166 @@
+CREATE TABLE IF NOT EXISTS users (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  email VARCHAR(190) NOT NULL UNIQUE,
+  name VARCHAR(190) NOT NULL DEFAULT '',
+  password_hash VARCHAR(255) NOT NULL,
+  role VARCHAR(10) NOT NULL DEFAULT 'user',
+  api_key VARCHAR(64) NOT NULL UNIQUE,
+  link_secret VARCHAR(64) NOT NULL,
+  timezone VARCHAR(64) NOT NULL DEFAULT 'Europe/Vilnius',
+  notify_email TINYINT NOT NULL DEFAULT 1,
+  notify_telegram TINYINT NOT NULL DEFAULT 0,
+  notify_mode VARCHAR(10) NOT NULL DEFAULT 'first',
+  notify_clicks TINYINT NOT NULL DEFAULT 1,
+  telegram_chat_id VARCHAR(64) NOT NULL DEFAULT '',
+  webhook_url VARCHAR(500) NOT NULL DEFAULT '',
+  daily_report TINYINT NOT NULL DEFAULT 1,
+  report_hour TINYINT NOT NULL DEFAULT 8,
+  last_report_date VARCHAR(10) NOT NULL DEFAULT '',
+  ignore_seconds INT NOT NULL DEFAULT 20,
+  auto_ignore_ips TINYINT NOT NULL DEFAULT 1,
+  created_at DATETIME NOT NULL,
+  last_login_at DATETIME NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS emails (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id INT UNSIGNED NOT NULL,
+  uid VARCHAR(32) NOT NULL UNIQUE,
+  subject VARCHAR(500) NOT NULL DEFAULT '',
+  recipients TEXT NULL,
+  source VARCHAR(20) NOT NULL DEFAULT 'manual',
+  created_at DATETIME NOT NULL,
+  open_count INT NOT NULL DEFAULT 0,
+  click_count INT NOT NULL DEFAULT 0,
+  first_open_at DATETIME NULL,
+  last_open_at DATETIME NULL,
+  reminder_at DATETIME NULL,
+  reminder_mode VARCHAR(10) NOT NULL DEFAULT 'no_open',
+  reminder_sent TINYINT NOT NULL DEFAULT 0,
+  archived TINYINT NOT NULL DEFAULT 0,
+  note VARCHAR(500) NOT NULL DEFAULT '',
+  INDEX idx_emails_user (user_id, created_at),
+  INDEX idx_emails_reminder (reminder_sent, reminder_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS opens (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  email_id INT UNSIGNED NOT NULL,
+  opened_at DATETIME NOT NULL,
+  ip VARCHAR(45) NOT NULL DEFAULT '',
+  user_agent VARCHAR(500) NOT NULL DEFAULT '',
+  client VARCHAR(60) NOT NULL DEFAULT '',
+  device VARCHAR(20) NOT NULL DEFAULT '',
+  os VARCHAR(40) NOT NULL DEFAULT '',
+  proxy VARCHAR(40) NOT NULL DEFAULT '',
+  country VARCHAR(80) NOT NULL DEFAULT '',
+  city VARCHAR(120) NOT NULL DEFAULT '',
+  ignored TINYINT NOT NULL DEFAULT 0,
+  ignore_reason VARCHAR(120) NOT NULL DEFAULT '',
+  INDEX idx_opens_email (email_id, opened_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS links (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  email_id INT UNSIGNED NOT NULL,
+  idx INT NOT NULL,
+  url TEXT NOT NULL,
+  click_count INT NOT NULL DEFAULT 0,
+  created_at DATETIME NOT NULL,
+  UNIQUE KEY uq_links (email_id, idx)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS clicks (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  email_id INT UNSIGNED NOT NULL,
+  link_id INT UNSIGNED NOT NULL,
+  clicked_at DATETIME NOT NULL,
+  ip VARCHAR(45) NOT NULL DEFAULT '',
+  user_agent VARCHAR(500) NOT NULL DEFAULT '',
+  client VARCHAR(60) NOT NULL DEFAULT '',
+  device VARCHAR(20) NOT NULL DEFAULT '',
+  os VARCHAR(40) NOT NULL DEFAULT '',
+  country VARCHAR(80) NOT NULL DEFAULT '',
+  city VARCHAR(120) NOT NULL DEFAULT '',
+  ignored TINYINT NOT NULL DEFAULT 0,
+  ignore_reason VARCHAR(120) NOT NULL DEFAULT '',
+  INDEX idx_clicks_email (email_id, clicked_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS documents (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id INT UNSIGNED NOT NULL,
+  uid VARCHAR(32) NOT NULL UNIQUE,
+  title VARCHAR(255) NOT NULL DEFAULT '',
+  filename VARCHAR(255) NOT NULL,
+  stored_name VARCHAR(255) NOT NULL,
+  mime VARCHAR(100) NOT NULL DEFAULT 'application/octet-stream',
+  size INT UNSIGNED NOT NULL DEFAULT 0,
+  view_count INT NOT NULL DEFAULT 0,
+  last_view_at DATETIME NULL,
+  created_at DATETIME NOT NULL,
+  INDEX idx_docs_user (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS doc_views (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  document_id INT UNSIGNED NOT NULL,
+  viewed_at DATETIME NOT NULL,
+  ip VARCHAR(45) NOT NULL DEFAULT '',
+  user_agent VARCHAR(500) NOT NULL DEFAULT '',
+  device VARCHAR(20) NOT NULL DEFAULT '',
+  os VARCHAR(40) NOT NULL DEFAULT '',
+  country VARCHAR(80) NOT NULL DEFAULT '',
+  city VARCHAR(120) NOT NULL DEFAULT '',
+  INDEX idx_dv_doc (document_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS notifications (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id INT UNSIGNED NOT NULL,
+  type VARCHAR(20) NOT NULL,
+  email_id INT UNSIGNED NULL,
+  document_id INT UNSIGNED NULL,
+  title VARCHAR(255) NOT NULL,
+  body VARCHAR(1000) NOT NULL DEFAULT '',
+  created_at DATETIME NOT NULL,
+  is_read TINYINT NOT NULL DEFAULT 0,
+  INDEX idx_notif_user (user_id, id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS selfviews (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  email_id INT UNSIGNED NOT NULL,
+  created_at DATETIME NOT NULL,
+  INDEX idx_sv_email (email_id, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS user_ips (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id INT UNSIGNED NOT NULL,
+  ip VARCHAR(45) NOT NULL,
+  note VARCHAR(120) NOT NULL DEFAULT '',
+  created_at DATETIME NOT NULL,
+  last_seen_at DATETIME NOT NULL,
+  UNIQUE KEY uq_user_ip (user_id, ip)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS geo_cache (
+  ip VARCHAR(45) NOT NULL PRIMARY KEY,
+  country VARCHAR(80) NOT NULL DEFAULT '',
+  city VARCHAR(120) NOT NULL DEFAULT '',
+  created_at DATETIME NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS login_attempts (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  ip VARCHAR(45) NOT NULL,
+  email VARCHAR(190) NOT NULL DEFAULT '',
+  created_at DATETIME NOT NULL,
+  INDEX idx_la_ip (ip, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS kv (
+  k VARCHAR(64) NOT NULL PRIMARY KEY,
+  v TEXT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

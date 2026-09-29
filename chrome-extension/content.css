@@ -1,0 +1,23 @@
+.mt-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 32px;
+  margin-left: 10px;
+  padding: 0 12px;
+  border-radius: 16px;
+  border: 1px solid #d0d5dd;
+  background: #fff;
+  color: #5f6368;
+  font: 500 13px/1 "Google Sans", Roboto, Arial, sans-serif;
+  cursor: pointer;
+  vertical-align: middle;
+  user-select: none;
+}
+.mt-toggle:hover { background: #f5f6f7; }
+.mt-toggle.on {
+  background: #e6f4ea;
+  border-color: #9ad0ac;
+  color: #16803c;
+}
+.mt-toggle .mt-tick { font-weight: 800; letter-spacing: -1px; }
