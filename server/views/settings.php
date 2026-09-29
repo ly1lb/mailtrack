@@ -45,11 +45,28 @@ $tzs = DateTimeZone::listIdentifiers();
 
 <div class="grid g2">
   <div class="card" style="margin:0">
-    <h3 style="margin-top:0">Telegram</h3>
-    <?php if (!cfg('telegram_bot_token')): ?>
-      <p class="help">Botas nesukonfigūruotas. Sukurkite botą per <b>@BotFather</b> Telegram programėlėje ir įrašykite raktą į <code>config.php</code> → <code>telegram_bot_token</code>.</p>
+    <h3 style="margin-top:0">Telegram pranešimai telefone</h3>
+    <?php $tgTok = telegram_token(); ?>
+    <ol class="steps" style="font-size:12.5px;color:var(--muted);padding-left:18px">
+      <li>Telegram programėlėje raskite <b>@BotFather</b> → <code>/newbot</code> → gausite boto raktą.</li>
+      <li>Įklijuokite raktą žemiau ir išsaugokite.</li>
+      <li>Raskite savo naują botą, paspauskite <b>START</b> (/start).</li>
+      <li>Spauskite „Aptikti chat ID“ – gausite bandomąją žinutę.</li>
+    </ol>
+    <form method="post" action="<?= e(base_url('settings/telegram-token')) ?>">
+      <?= csrf_field() ?>
+      <label>Boto raktas</label>
+      <input type="text" name="telegram_bot_token" value="<?= e($tgTok) ?>" placeholder="123456789:AAE...">
+      <p><button class="btn">Išsaugoti raktą</button></p>
+    </form>
+    <?php if ($tgTok !== ''): ?>
+      <div class="copy-box">
+        <form method="post" action="<?= e(base_url('settings/telegram-detect')) ?>" class="inline"><?= csrf_field() ?><button class="btn primary">Aptikti chat ID</button></form>
+        <form method="post" action="<?= e(base_url('settings/telegram-test')) ?>" class="inline"><?= csrf_field() ?><button class="btn">Siųsti bandomąją žinutę</button></form>
+      </div>
+      <p class="help">Būsena: raktas ✓ · chat ID: <?= $u['telegram_chat_id'] !== '' ? e($u['telegram_chat_id']) . ' ✓' : '<b style="color:var(--bad)">nenustatytas</b>' ?> · pranešimai: <?= $u['notify_telegram'] ? 'įjungti ✓ (pažymėkite „Telegram“ viršuje ir išsaugokite)' : '<b>išjungti – pažymėkite „Telegram“ pranešimų skiltyje ir išsaugokite</b>' ?></p>
     <?php else: ?>
-      <form method="post" action="<?= e(base_url('settings/telegram-detect')) ?>"><?= csrf_field() ?><button class="btn">Aptikti chat ID automatiškai</button></form>
+      <p class="help">Raktą galite įrašyti ir čia, ir <code>config.php</code> faile (<code>telegram_bot_token</code>).</p>
     <?php endif; ?>
 
     <h3>API raktas (plėtiniui ir Gmail priedui)</h3>

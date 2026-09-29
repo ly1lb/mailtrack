@@ -2,8 +2,9 @@
 /** Pagrindinė sekimo logika: laiškų registravimas, atidarymai, paspaudimai, dokumentų peržiūros. */
 final class Tracker
 {
-    public const SELFVIEW_WINDOW = 20;   // sek. – atidarymai šiame lange po "savos peržiūros" ignoruojami
+    public const SELFVIEW_WINDOW = 90;   // sek. – atidarymai šiame lange po "savos peržiūros" ignoruojami
     public const DUPLICATE_WINDOW = 30;  // sek. – pasikartojantys užklausimai iš to paties IP+UA
+    public const PROXY_DEDUP_WINDOW = 900; // sek. (15 min) – Gmail/Yahoo proxy užklausos sujungiamos į vieną
 
     /**
      * Sukuria (arba atnaujina, jei uid jau yra) sekamą laišką.
@@ -260,6 +261,18 @@ final class Tracker
         }
         if ($p['bot']) {
             return 'Botas / saugumo skeneris';
+        }
+        // Gmail/Yahoo proxy IP kaskart skiriasi ir laiškas dažnai užkraunamas kelis
+        // kartus (prefetch pristatant + realus atidarymas). Todėl proxy atidarymus
+        // sujungiam ilgesniame lange ignoruodami IP/UA – kad nebūtų dvigubo skaičiaus.
+        if ($table === 'opens' && $p['proxy'] !== '') {
+            $dupProxy = DB::value(
+                "SELECT COUNT(*) FROM opens WHERE email_id = ? AND proxy = ? AND ignored = 0 AND opened_at >= ?",
+                [$email['id'], $p['proxy'], gmdate('Y-m-d H:i:s', time() - self::PROXY_DEDUP_WINDOW)]
+            );
+            if ($dupProxy) {
+                return 'Pasikartojanti proxy užklausa';
+            }
         }
         $dup = DB::value(
             "SELECT COUNT(*) FROM $table WHERE email_id = ? AND ip = ? AND user_agent = ? AND ignored = 0 AND $col >= ?",

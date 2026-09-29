@@ -198,6 +198,23 @@ function ago(?string $utc): string
     return fmt_dt($utc, 'Y-m-d');
 }
 
+/** Telegram boto raktas: pirmiausia iš nustatymų (kv), tada iš config.php. */
+function telegram_token(): string
+{
+    static $t = null;
+    if ($t === null) {
+        try {
+            $t = (string)(kv_get('telegram_bot_token') ?? '');
+        } catch (Throwable $e) {
+            $t = '';
+        }
+        if ($t === '') {
+            $t = (string)cfg('telegram_bot_token', '');
+        }
+    }
+    return $t;
+}
+
 function kv_get(string $k, $default = null)
 {
     $v = DB::value('SELECT v FROM kv WHERE k = ?', [$k]);

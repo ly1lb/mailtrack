@@ -26,7 +26,7 @@ final class Notifier
         }
         $link = $emailId ? base_url('email/' . $emailId) : ($docId ? base_url('documents') : base_url(''));
 
-        if (!empty($user['notify_telegram']) && $user['telegram_chat_id'] !== '' && cfg('telegram_bot_token')) {
+        if (!empty($user['notify_telegram']) && $user['telegram_chat_id'] !== '' && telegram_token()) {
             self::telegram($user['telegram_chat_id'], "<b>" . e($title) . "</b>\n" . e($body) . "\n<a href=\"" . e($link) . "\">Atidaryti</a>");
         }
         if (!empty($user['notify_email'])) {
@@ -47,7 +47,7 @@ final class Notifier
 
     public static function telegram(string $chatId, string $html): bool
     {
-        $token = (string)cfg('telegram_bot_token');
+        $token = (string)telegram_token();
         if ($token === '') {
             return false;
         }

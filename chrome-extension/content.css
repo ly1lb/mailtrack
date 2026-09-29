@@ -21,3 +21,27 @@
   color: #16803c;
 }
 .mt-toggle .mt-tick { font-weight: 800; letter-spacing: -1px; }
+
+.mt-banner {
+  margin: 8px 0;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font: 500 12.5px/1.4 "Google Sans", Roboto, Arial, sans-serif;
+  background: #f1f3f4;
+  color: #5f6368;
+  cursor: pointer;
+  display: inline-block;
+}
+.mt-banner.on { background: #e6f4ea; color: #16803c; }
+
+.mt-list-badge {
+  display: inline-block;
+  min-width: 20px;
+  margin-right: 6px;
+  font-weight: 800;
+  letter-spacing: -1px;
+  color: #9aa0a6;
+  vertical-align: middle;
+}
+.mt-list-badge.on { color: #16803c; }
+

@@ -269,28 +269,47 @@ if ($path === 'settings' || preg_match('#^settings/([a-z-]+)$#', $path, $m)) {
                 DB::query('DELETE FROM user_ips WHERE id = ? AND user_id = ?', [(int)($_POST['id'] ?? 0), $uid]);
                 flash('IP pašalintas.');
                 break;
-            case 'telegram-detect':
-                $token = (string)cfg('telegram_bot_token');
-                if ($token === '') {
-                    flash('config.php nenurodytas telegram_bot_token.', 'err');
+            case 'telegram-token':
+                $tok = trim((string)($_POST['telegram_bot_token'] ?? ''));
+                if ($tok !== '' && !preg_match('#^\d{6,}:[A-Za-z0-9_-]{30,}$#', $tok)) {
+                    flash('Boto raktas atrodo neteisingas. Formatas: 123456789:AAE... (iš @BotFather).', 'err');
                     break;
                 }
-                $resp = @file_get_contents("https://api.telegram.org/bot$token/getUpdates?limit=20");
-                $d = json_decode((string)$resp, true);
+                kv_set('telegram_bot_token', $tok);
+                flash($tok === '' ? 'Telegram boto raktas pašalintas.' : 'Telegram boto raktas išsaugotas. Dabar parašykite botui /start ir spauskite „Aptikti chat ID“.');
+                break;
+            case 'telegram-test':
+                if ($u['telegram_chat_id'] === '') {
+                    flash('Nėra chat ID. Pirmiausia „Aptikti chat ID“.', 'err');
+                    break;
+                }
+                $ok = Notifier::telegram($u['telegram_chat_id'], '🔔 MailTrack Pro bandomoji žinutė – viskas veikia!');
+                flash($ok ? 'Bandomoji žinutė išsiųsta į Telegram.' : 'Nepavyko išsiųsti – žr. Žurnalus (galbūt neteisingas chat ID ar serveris be interneto).', $ok ? 'ok' : 'err');
+                break;
+            case 'telegram-detect':
+                $token = telegram_token();
+                if ($token === '') {
+                    flash('Pirmiausia įveskite Telegram boto raktą (laukelis aukščiau).', 'err');
+                    break;
+                }
+                $r = http_post_json("https://api.telegram.org/bot$token/getUpdates", ['limit' => 20], 6);
+                $d = json_decode($r['body'], true);
+                if ($r['code'] !== 200 || !is_array($d) || empty($d['ok'])) {
+                    Logger::warning('Telegram getUpdates klaida', ['code' => $r['code'], 'resp' => substr($r['body'], 0, 300), 'err' => $r['error']]);
+                    flash('Telegram klaida (HTTP ' . $r['code'] . '): ' . (($d['description'] ?? '') ?: ($r['error'] ?: 'patikrinkite boto raktą')) . '. Ar serveris turi interneto prieigą? Žr. Žurnalus.', 'err');
+                    break;
+                }
                 $chat = null;
                 foreach (array_reverse($d['result'] ?? []) as $upd) {
-                    if (isset($upd['message']['chat']['id'])) {
-                        $chat = (string)$upd['message']['chat']['id'];
-                        break;
-                    }
+                    $c = $upd['message']['chat']['id'] ?? ($upd['channel_post']['chat']['id'] ?? null);
+                    if ($c !== null) { $chat = (string)$c; break; }
                 }
                 if ($chat) {
                     DB::update('users', ['telegram_chat_id' => $chat, 'notify_telegram' => 1], 'id = :id', ['id' => $uid]);
-                    Notifier::telegram($chat, '✅ MailTrack Pro prijungtas! Čia gausite pranešimus apie atidarymus.');
-                    flash('Telegram prijungtas (chat ID ' . $chat . ').');
+                    $ok = Notifier::telegram($chat, '✅ MailTrack Pro prijungtas! Čia gausite pranešimus apie atidarymus ir paspaudimus.');
+                    flash($ok ? 'Telegram prijungtas (chat ID ' . $chat . '). Turėjote gauti bandomąją žinutę.' : 'Chat ID rastas, bet žinutės išsiųsti nepavyko – žr. Žurnalus.', $ok ? 'ok' : 'err');
                 } else {
-                    Logger::warning('Telegram getUpdates negrąžino žinučių', ['resp' => substr((string)$resp, 0, 300)]);
-                    flash('Nerasta žinučių. Parašykite botui /start ir bandykite dar kartą.', 'err');
+                    flash('Boto raktas veikia, bet dar negauta jokių žinučių. Telegram programėlėje suraskite savo botą, paspauskite START arba parašykite /start, tada bandykite dar kartą.', 'err');
                 }
                 break;
         }
@@ -426,7 +445,7 @@ if ($path === 'diagnostics' || preg_match('#^diagnostics/(mail|telegram|pixel)$#
     $lastCron = kv_get('cron_last_run');
     $cronOk = $lastCron && strtotime($lastCron . ' UTC') > time() - 3600;
     $checks[] = ['Cron paleistas per paskutinę valandą', (bool)$cronOk, $lastCron ? fmt_dt($lastCron) . ' (' . ago($lastCron) . ')' : 'niekada'];
-    $checks[] = ['Telegram botas sukonfigūruotas', (bool)cfg('telegram_bot_token'), cfg('telegram_bot_token') ? 'taip' : 'ne (neprivaloma)'];
+    $checks[] = ['Telegram botas sukonfigūruotas', telegram_token() !== '', telegram_token() ? 'taip' : 'ne (neprivaloma)'];
     $checks[] = ['SMTP sukonfigūruotas', (bool)cfg('mail.smtp.host'), cfg('mail.smtp.host') ?: 'naudojamas mail()'];
     $checks[] = ['Geolokacija', (bool)cfg('geo_enabled'), cfg('geo_enabled') ? 'ip-api.com' : 'išjungta'];
     $checks[] = ['LiteSpeed/FPM greitas atsakymas', function_exists('litespeed_finish_request') || function_exists('fastcgi_finish_request'), function_exists('litespeed_finish_request') ? 'litespeed_finish_request' : (function_exists('fastcgi_finish_request') ? 'fastcgi_finish_request' : 'nėra (pikselis šiek tiek lėtesnis)')];
