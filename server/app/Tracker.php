@@ -4,7 +4,8 @@ final class Tracker
 {
     public const SELFVIEW_WINDOW = 90;   // sek. – atidarymai šiame lange po "savos peržiūros" ignoruojami
     public const DUPLICATE_WINDOW = 30;  // sek. – pasikartojantys užklausimai iš to paties IP+UA
-    public const PROXY_DEDUP_WINDOW = 900; // sek. (15 min) – Gmail/Yahoo proxy užklausos sujungiamos į vieną
+    public const PROXY_DEDUP_WINDOW = 180; // sek. (3 min) – sujungiam Google prefetch + iškart sekantį render,
+                                           // bet tikrus vėlesnius pakartotinius atidarymus vis tiek skaičiuojam
 
     /**
      * Sukuria (arba atnaujina, jei uid jau yra) sekamą laišką.

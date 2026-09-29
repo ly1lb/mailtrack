@@ -3,33 +3,59 @@
 <head>
 <meta charset="utf-8">
 <style>
-  body { font: 13px/1.5 system-ui, Arial, sans-serif; width: 300px; margin: 0; color: #1f2937; }
-  header { background: #2a78d6; color: #fff; padding: 12px 14px; font-weight: 600; }
-  .body { padding: 14px; }
-  .row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; }
-  .stat { font-size: 22px; font-weight: 700; }
-  .muted { color: #6b7280; }
-  button, a.btn { display: inline-block; margin-top: 8px; padding: 7px 12px; border: 1px solid #d0d5dd; border-radius: 8px; background: #fff; color: #1f2937; font: inherit; cursor: pointer; text-decoration: none; }
-  a.btn.primary { background: #2a78d6; border-color: #2a78d6; color: #fff; }
-  .switch { display: flex; gap: 8px; align-items: center; }
+  :root { --acc:#2a78d6; --good:#16803c; --ink:#202124; --mut:#6b7280; --bd:#e3e6eb; --bg:#fff; --bg2:#f6f7f9; }
+  * { box-sizing: border-box; }
+  body { font: 13px/1.5 system-ui, Arial, sans-serif; width: 340px; margin: 0; color: var(--ink); background: var(--bg); }
+  header { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid var(--bd); }
+  .brand { font-weight: 700; font-size: 15px; display: flex; align-items: center; gap: 6px; }
+  .brand .t { color: var(--good); letter-spacing: -1px; }
+  .dash { background: var(--good); color: #fff; border: 0; border-radius: 8px; padding: 7px 10px; font: 600 12px/1 inherit; cursor: pointer; text-decoration: none; }
+  .body { padding: 12px 14px; }
+  .stats { display: flex; gap: 8px; margin-bottom: 12px; }
+  .stat { flex: 1; background: var(--bg2); border: 1px solid var(--bd); border-radius: 8px; padding: 8px 10px; }
+  .stat .n { font-size: 20px; font-weight: 700; }
+  .stat .l { color: var(--mut); font-size: 11px; }
+  h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--mut); margin: 4px 0 8px; }
+  .feed { list-style: none; margin: 0; padding: 0; max-height: 300px; overflow-y: auto; }
+  .feed li { display: flex; gap: 9px; padding: 8px 0; border-bottom: 1px solid var(--bd); cursor: pointer; }
+  .feed li:hover { background: var(--bg2); }
+  .feed .ic { font-size: 15px; line-height: 1.3; }
+  .feed .t { font-weight: 600; }
+  .feed .b { color: var(--mut); font-size: 12px; }
+  .feed .w { color: #9aa0a6; font-size: 11px; }
+  .empty { color: var(--mut); padding: 16px 0; text-align: center; }
+  .unconf { text-align: center; padding: 8px 0; }
+  .unconf .btn { display: inline-block; margin-top: 8px; padding: 8px 14px; border-radius: 8px; background: var(--acc); color: #fff; border: 0; font: inherit; cursor: pointer; }
+  footer { display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; border-top: 1px solid var(--bd); color: var(--mut); font-size: 12px; }
+  .toggle { display: flex; align-items: center; gap: 6px; }
   .err { background: #fde8e7; color: #b3261e; padding: 8px 10px; border-radius: 8px; font-size: 12px; margin-top: 8px; }
-  ul { padding-left: 16px; margin: 6px 0; } li { font-size: 12px; color: #6b7280; }
+  a { color: var(--acc); text-decoration: none; }
 </style>
 </head>
 <body>
-<header>✓✓ MailTrack Pro</header>
-<div class="body" id="body">
-  <div id="unconf" style="display:none">
-    <p>Plėtinys dar nesukonfigūruotas.</p>
-    <a class="btn primary" id="openOpts">Įvesti serverį ir API raktą</a>
+<header>
+  <span class="brand"><span class="t">✓✓</span> MailTrack Pro</span>
+  <a class="dash" id="dash" target="_blank">Skydelis</a>
+</header>
+<div class="body">
+  <div id="unconf" class="unconf" style="display:none">
+    <p>Plėtinys dar nesukonfigūruotas.<br>Įveskite serverio adresą ir API raktą.</p>
+    <button class="btn" id="openOpts">Atidaryti nustatymus</button>
   </div>
   <div id="conf" style="display:none">
-    <div class="row"><span class="muted">Prisijungta</span><b id="email">—</b></div>
-    <div class="row switch"><label class="switch"><input type="checkbox" id="trackByDefault"> Sekti naujus laiškus</label></div>
-    <div class="row"><a class="btn primary" id="dash" target="_blank">Atidaryti skydelį</a> <a class="btn" id="openOpts2">Nustatymai</a></div>
+    <div class="stats">
+      <div class="stat"><div class="n" id="s-today">–</div><div class="l">Atidarymai šiandien</div></div>
+      <div class="stat"><div class="n" id="s-tracked">–</div><div class="l">Sekami laiškai</div></div>
+    </div>
+    <h3>Naujausia veikla</h3>
+    <ul class="feed" id="feed"><li class="empty">Kraunama…</li></ul>
     <div id="errbox"></div>
   </div>
 </div>
+<footer>
+  <span id="ver">MailTrack Pro</span>
+  <label class="toggle"><input type="checkbox" id="trackByDefault"> Sekti naujus</label>
+</footer>
 <script src="popup.js"></script>
 </body>
 </html>

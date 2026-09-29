@@ -130,6 +130,19 @@ try {
         json_out(['ok' => true, 'last_id' => $last, 'items' => $items]);
     }
 
+    if ($sub === 'activity' && $method === 'GET') {
+        $limit = max(1, min(50, (int)($_GET['limit'] ?? 15)));
+        $rows = DB::all('SELECT id, type, title, body, email_id, created_at FROM notifications WHERE user_id = ? ORDER BY id DESC LIMIT ' . $limit, [$user['id']]);
+        foreach ($rows as &$it) {
+            $it['created_at'] = iso_utc($it['created_at']);
+            $it['url'] = $it['email_id'] ? base_url('email/' . $it['email_id']) : base_url('');
+        }
+        unset($it);
+        $today = (int)DB::value('SELECT COUNT(*) FROM opens o JOIN emails e ON e.id = o.email_id WHERE e.user_id = ? AND o.ignored = 0 AND o.opened_at >= ?', [$user['id'], gmdate('Y-m-d 00:00:00')]);
+        $tracked = (int)DB::value('SELECT COUNT(*) FROM emails WHERE user_id = ? AND archived = 0', [$user['id']]);
+        json_out(['ok' => true, 'items' => $rows, 'opens_today' => $today, 'tracked' => $tracked, 'dashboard_url' => base_url('')]);
+    }
+
     if ($sub === 'templates' && $method === 'GET') {
         $rows = DB::all('SELECT id, name, subject, body_html FROM templates WHERE user_id = ? ORDER BY use_count DESC, name ASC LIMIT 100', [$user['id']]);
         json_out(['ok' => true, 'templates' => $rows]);
