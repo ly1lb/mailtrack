@@ -181,6 +181,100 @@
     }
   }
 
+  // ================= MINI DASHBOARD GMAIL LANGE (kaip Mailsuite panelė) =================
+  var panelEl = null, fabEl = null, panelOpen = false;
+
+  function ensureFab() {
+    if (fabEl && document.body.contains(fabEl)) return;
+    fabEl = document.createElement('div');
+    fabEl.className = 'mt-fab';
+    fabEl.title = 'MailTrack Pro – veikla';
+    fabEl.innerHTML = '<span class="mt-fab-tick">✓✓</span>';
+    fabEl.addEventListener('click', togglePanel);
+    document.body.appendChild(fabEl);
+  }
+
+  function togglePanel() {
+    if (!panelEl) buildPanel();
+    panelOpen = !panelOpen;
+    panelEl.classList.toggle('open', panelOpen);
+    if (panelOpen) refreshPanel();
+  }
+
+  function buildPanel() {
+    panelEl = document.createElement('div');
+    panelEl.className = 'mt-panel';
+    panelEl.innerHTML =
+      '<div class="mt-panel-head">' +
+        '<span class="mt-panel-title"><span class="mt-tickg">✓✓</span> MailTrack Pro</span>' +
+        '<span class="mt-panel-actions"><a class="mt-panel-dash" target="_blank">Skydelis ↗</a>' +
+        '<span class="mt-panel-close" title="Uždaryti">✕</span></span>' +
+      '</div>' +
+      '<div class="mt-panel-stats">' +
+        '<div class="mt-stat"><div class="n" id="mt-s-today">–</div><div class="l">Atidarymai šiandien</div></div>' +
+        '<div class="mt-stat"><div class="n" id="mt-s-tracked">–</div><div class="l">Sekami laiškai</div></div>' +
+      '</div>' +
+      '<div class="mt-panel-sub">Naujausia veikla</div>' +
+      '<div class="mt-panel-feed" id="mt-panel-feed"><div class="mt-empty">Kraunama…</div></div>';
+    document.body.appendChild(panelEl);
+    panelEl.querySelector('.mt-panel-close').addEventListener('click', togglePanel);
+    if (CFG && CFG.serverUrl) panelEl.querySelector('.mt-panel-dash').href = CFG.serverUrl;
+  }
+
+  function agoTxt(iso) {
+    try {
+      var d = (Date.now() - new Date(iso).getTime()) / 1000;
+      if (d < 60) return 'ką tik';
+      if (d < 3600) return 'prieš ' + Math.floor(d / 60) + ' min.';
+      if (d < 86400) return 'prieš ' + Math.floor(d / 3600) + ' val.';
+      return 'prieš ' + Math.floor(d / 86400) + ' d.';
+    } catch (e) { return ''; }
+  }
+  function iconFor(type) {
+    return type === 'open' ? '👁' : type === 'click' ? '🔗' : type === 'doc' ? '📄' : type === 'reminder' ? '⏰' : '✉️';
+  }
+
+  function refreshPanel() {
+    if (!panelEl) return;
+    apiGet('activity?limit=25', function (d) {
+      var feed = panelEl.querySelector('#mt-panel-feed');
+      if (!d) { feed.innerHTML = '<div class="mt-empty">Nepavyko gauti veiklos. Patikrinkite plėtinio nustatymus.</div>'; return; }
+      panelEl.querySelector('#mt-s-today').textContent = d.opens_today != null ? d.opens_today : '–';
+      panelEl.querySelector('#mt-s-tracked').textContent = d.tracked != null ? d.tracked : '–';
+      if (!d.items || !d.items.length) { feed.innerHTML = '<div class="mt-empty">Kol kas veiklos nėra.</div>'; return; }
+      feed.innerHTML = '';
+      d.items.forEach(function (n) {
+        var it = document.createElement('div');
+        it.className = 'mt-fitem';
+        var ic = document.createElement('div'); ic.className = 'mt-fic'; ic.textContent = iconFor(n.type);
+        var mid = document.createElement('div'); mid.className = 'mt-fmid';
+        var t = document.createElement('div'); t.className = 'mt-ft'; t.textContent = n.title;
+        var b = document.createElement('div'); b.className = 'mt-fb'; b.textContent = (n.body || '').split('\n')[0];
+        var w = document.createElement('div'); w.className = 'mt-fw'; w.textContent = agoTxt(n.created_at);
+        mid.appendChild(t); mid.appendChild(b); mid.appendChild(w);
+        it.appendChild(ic); it.appendChild(mid);
+        it.addEventListener('click', function () { window.open(n.url, '_blank'); });
+        feed.appendChild(it);
+      });
+    });
+  }
+
+  // Periodiškai atnaujinam FAB ženkliuką (kiek naujų nuo paskutinio žvilgsnio) ir atvirą panelę
+  var seenActivityId = 0;
+  function pollFab() {
+    if (!ready) return;
+    apiGet('activity?limit=1', function (d) {
+      if (!d) return;
+      if (panelEl && panelOpen) refreshPanel();
+      var newest = d.items && d.items[0] ? d.items[0].id : 0;
+      if (seenActivityId && newest > seenActivityId && !panelOpen && fabEl) {
+        fabEl.classList.add('pulse');
+      }
+      if (newest && !seenActivityId) seenActivityId = newest;
+      if (panelOpen) { seenActivityId = newest; if (fabEl) fabEl.classList.remove('pulse'); }
+    });
+  }
+
   // ================= ŠABLONAI =================
   function openTemplateMenu(anchor, state) {
     var existing = document.querySelector('.mt-menu');
@@ -351,6 +445,7 @@
       decorateComposes();
       scanOpenedMessages();
       decorateList();
+      if (ready) ensureFab();
     }, 250);
   });
 
@@ -360,8 +455,10 @@
       decorateComposes();
       scanOpenedMessages();
       decorateList();
+      if (ready) { ensureFab(); pollFab(); }
+      setInterval(pollFab, 20000);
       window.addEventListener('hashchange', function () { setTimeout(decorateList, 400); });
-      chrome.storage.onChanged.addListener(function (c, area) { if (area === 'sync') loadCfg(); });
+      chrome.storage.onChanged.addListener(function (c, area) { if (area === 'sync') loadCfg(function () { if (ready) ensureFab(); }); });
     });
   }
   if (document.body) boot();
