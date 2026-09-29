@@ -131,15 +131,29 @@
       toggle.__mtState = state;
       if (sendBtn.parentElement) sendBtn.parentElement.insertBefore(toggle, sendBtn.nextSibling);
 
-      // Šablonų mygtukas
+      // Šablonų mygtukas – dedam VIRŠ laiško teksto (kaip Mailsuite „Load template“),
+      // o ne į apatinę Gmail juostą: ten Gmail perima įvykius ir mygtukas „negyvas“.
       var tplBtn = document.createElement('div');
-      tplBtn.className = 'mt-toggle mt-tpl';
+      tplBtn.className = 'mt-tplbar-btn mt-tpl';
       tplBtn.setAttribute('role', 'button');
       tplBtn.tabIndex = 0;
-      tplBtn.innerHTML = '<span class="mt-lbl">Šablonai ▾</span>';
+      tplBtn.innerHTML = '<span class="mt-tickg">✓✓</span><span class="mt-lbl">Įkelti šabloną</span>';
       tplBtn.title = 'Įterpti laiško šabloną';
       tplBtn.__mtState = state;
-      if (toggle.parentElement) toggle.parentElement.insertBefore(tplBtn, toggle.nextSibling);
+      // Už Gmail juostos ribų įprastas listener'is veikia – kabinam ir jį (atsarga)
+      tplBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        e.preventDefault();
+        openTemplateMenu(tplBtn, state);
+      });
+      var bar = document.createElement('div');
+      bar.className = 'mt-tplbar';
+      bar.appendChild(tplBtn);
+      if (body.parentElement) {
+        body.parentElement.insertBefore(bar, body);
+      } else if (toggle.parentElement) {
+        toggle.parentElement.insertBefore(tplBtn, toggle.nextSibling);
+      }
 
       sendBtn.addEventListener('click', function () { beforeSend(state); }, true);
       dialog.addEventListener('keydown', function (e) {
@@ -397,6 +411,65 @@
       apiGet('emails/' + uid, function (d) {
         if (d) { statusMap[uid] = d; injectOpenBanner(msg, d); }
       });
+    });
+    detectForeignTrackers();
+  }
+
+  /* Ar KITI seka mus? Mailsuite rodo žalią tašką, kai gavėjas irgi naudoja Mailsuite.
+     Naudingesnis variantas: aptinkam, kai gautame laiške yra sekimo pikselis – t.y.
+     siuntėjas seka, ar jūs perskaitėte. Rodom ženklą su sekiklio pavadinimu. */
+  var TRACKERS = [
+    [/mailtrack\.io|mailtrack\.me/i, 'Mailtrack'],
+    [/mailsuite\.com|\bmlsnd\b/i, 'Mailsuite'],
+    [/t\.yesware\.com|yesware\.com/i, 'Yesware'],
+    [/streak\.com|mailfoogae/i, 'Streak'],
+    [/track\.hubspot\.com|hubspotemail/i, 'HubSpot'],
+    [/mixmax\.com/i, 'Mixmax'],
+    [/bananatag\.com/i, 'Bananatag'],
+    [/saleshandy\.com/i, 'Saleshandy'],
+    [/snov\.io/i, 'Snov.io'],
+    [/gmass\.co/i, 'GMass'],
+    [/contactmonkey\.com/i, 'ContactMonkey'],
+    [/cirrusinsight\.com/i, 'Cirrus Insight'],
+    [/getnotify\.com|didtheyreadit/i, 'GetNotify'],
+    [/outreach\.io/i, 'Outreach'],
+    [/apollo\.io/i, 'Apollo'],
+    [/sendgrid\.net\/wf\/open|sendgrid\.net\/ls\/open/i, 'SendGrid'],
+    [/mailchimp\.com\/track|list-manage\.com\/track/i, 'Mailchimp']
+  ];
+
+  function detectForeignTrackers() {
+    document.querySelectorAll('div.a3s:not([data-mt-tscan])').forEach(function (msg) {
+      msg.setAttribute('data-mt-tscan', '1');
+      var found = {};
+      msg.querySelectorAll('img').forEach(function (img) {
+        var src = img.getAttribute('src') || img.getAttribute('data-src') || '';
+        if (!src) return;
+        // tik maži/nematomi paveikslėliai laikomi sekikliais
+        var w = parseInt(img.getAttribute('width') || '0', 10);
+        var h = parseInt(img.getAttribute('height') || '0', 10);
+        var tiny = (w > 0 && w <= 3) || (h > 0 && h <= 3) || img.naturalWidth === 1 || img.naturalHeight === 1;
+        for (var i = 0; i < TRACKERS.length; i++) {
+          if (TRACKERS[i][0].test(src)) { found[TRACKERS[i][1]] = 1; return; }
+        }
+        if (tiny && /\/(open|o|pixel|track|t)\b|\.gif(\?|$)/i.test(src)) {
+          try {
+            var host = new URL(src, location.href).hostname;
+            if (CFG && CFG.serverUrl && CFG.serverUrl.indexOf(host) !== -1) return; // mūsų pačių
+            if (/googleusercontent|gstatic|google\.com/i.test(host)) return;
+            found['nežinomas sekiklis (' + host + ')'] = 1;
+          } catch (e) {}
+        }
+      });
+      var names = Object.keys(found);
+      if (!names.length) return;
+      var host = msg.closest('.gs, .adn, .h7') || msg.parentElement || msg;
+      if (host.querySelector(':scope > .mt-tracked-by')) return;
+      var b = document.createElement('div');
+      b.className = 'mt-tracked-by';
+      b.textContent = '🔴 Šis laiškas jus seka · ' + names.join(', ');
+      b.title = 'Siuntėjas mato, ar ir kada atidarėte šį laišką. Kad nesektų – neleiskite užkrauti paveikslėlių.';
+      host.insertBefore(b, msg);
     });
   }
 

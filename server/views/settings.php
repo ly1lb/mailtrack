@@ -39,9 +39,26 @@ $tzs = DateTimeZone::listIdentifiers();
     <label class="chk"><input type="checkbox" name="notify_clicks" <?= $u['notify_clicks'] ? 'checked' : '' ?>> Pranešti apie nuorodų paspaudimus</label>
     <label>Kada pranešti apie atidarymą</label>
     <select name="notify_mode">
-      <option value="first" <?= $u['notify_mode'] === 'first' ? 'selected' : '' ?>>Tik pirmą kartą</option>
-      <option value="every" <?= $u['notify_mode'] === 'every' ? 'selected' : '' ?>>Kiekvieną kartą</option>
+      <option value="every" <?= $u['notify_mode'] === 'every' ? 'selected' : '' ?>>Kiekvieną kartą (rekomenduojama)</option>
+      <option value="first" <?= $u['notify_mode'] === 'first' ? 'selected' : '' ?>>Tik pirmą tikrą atidarymą</option>
+      <option value="off" <?= $u['notify_mode'] === 'off' ? 'selected' : '' ?>>Nepranešti apie atidarymus</option>
     </select>
+    <label class="chk"><input type="checkbox" name="notify_skip_prefetch" <?= (!isset($u['notify_skip_prefetch']) || $u['notify_skip_prefetch']) ? 'checked' : '' ?>> Nepranešti apie „galimą Gmail prefetch“ (rekomenduojama – nebus klaidingų pranešimų)</label>
+
+    <?php
+    $tgOn = !empty($u['notify_telegram']) && ($u['telegram_chat_id'] ?? '') !== '' && telegram_token() !== '';
+    $smtpHost = (string)cfg('mail.smtp.host');
+    $mailOn = !empty($u['notify_email']) && ($smtpHost === '' || (cfg('mail.smtp.user') && cfg('mail.smtp.pass')));
+    ?>
+    <div class="card" style="margin:12px 0 0;background:var(--surface-2)">
+      <b>Pranešimų suvestinė</b>
+      <div class="help" style="margin-top:6px">
+        Telegram: <?= $tgOn ? '<b style="color:var(--good)">VEIKIA ✓</b>' : '<b style="color:var(--bad)">NEVEIKIA</b> – ' . (telegram_token() === '' ? 'nėra boto rakto' : (($u['telegram_chat_id'] ?? '') === '' ? 'nėra chat ID' : 'nepažymėta „Telegram“ varnelė')) ?><br>
+        El. paštas: <?= $mailOn ? '<b style="color:var(--good)">VEIKIA ✓</b>' : '<b style="color:var(--bad)">NEVEIKIA</b> – ' . (empty($u['notify_email']) ? 'nepažymėta varnelė' : 'nėra SMTP prisijungimo duomenų config.php') ?><br>
+        Apie atidarymus: <b><?= ['every' => 'kiekvieną kartą', 'first' => 'tik pirmą tikrą', 'off' => 'nepranešama'][$u['notify_mode']] ?? '' ?></b>,
+        paspaudimus: <b><?= !empty($u['notify_clicks']) ? 'taip' : 'ne' ?></b>
+      </div>
+    </div>
     <label>Telegram chat ID</label>
     <input type="text" name="telegram_chat_id" value="<?= e($u['telegram_chat_id']) ?>" placeholder="123456789">
     <div class="help">Parašykite savo botui <code>/start</code> ir spauskite „Aptikti automatiškai“ žemiau.</div>

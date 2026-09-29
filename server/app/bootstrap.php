@@ -71,6 +71,10 @@ try {
         DB::pdo()->exec('ALTER TABLE users ADD COLUMN prefetch_seconds INT NOT NULL DEFAULT 150');
         Logger::info('Migracija: pridėtas users.prefetch_seconds');
     }
+    if (!in_array('notify_skip_prefetch', $cols, true)) {
+        DB::pdo()->exec('ALTER TABLE users ADD COLUMN notify_skip_prefetch TINYINT NOT NULL DEFAULT 1');
+        Logger::info('Migracija: pridėtas users.notify_skip_prefetch');
+    }
     if (!in_array('prefetch_mode', $cols, true)) {
         DB::pdo()->exec("ALTER TABLE users ADD COLUMN prefetch_mode VARCHAR(10) NOT NULL DEFAULT 'flag'");
         Logger::info('Migracija: pridėtas users.prefetch_mode');

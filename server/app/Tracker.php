@@ -127,7 +127,26 @@ final class Tracker
         }
         $subj = $email['subject'] !== '' ? $email['subject'] : '(be temos)';
         $to = recipients_text($email['recipients']);
-        $push = $user['notify_mode'] === 'every' || $count === 1;
+
+        // Ar apie šį atidarymą pranešti (Telegram / el. paštu).
+        // Svarbu: „įtartinas" (galimas prefetch) atidarymas neturi suvalgyti
+        // pirmojo pranešimo – kitaip apie TIKRĄ atidarymą nebepraneštume.
+        $suspect = $cl['reason'] !== '';
+        $mode = (string)($user['notify_mode'] ?? 'every');
+        $skipPrefetch = !isset($user['notify_skip_prefetch']) || !empty($user['notify_skip_prefetch']);
+        $realCount = (int)DB::value(
+            "SELECT COUNT(*) FROM opens WHERE email_id = ? AND ignored = 0 AND ignore_reason = ''",
+            [$email['id']]
+        );
+        if ($mode === 'off') {
+            $push = false;
+        } elseif ($suspect) {
+            $push = !$skipPrefetch && $mode === 'every';
+        } elseif ($mode === 'every') {
+            $push = true;
+        } else { // 'first'
+            $push = $realCount === 1;
+        }
         Notifier::notify(
             $user,
             'open',

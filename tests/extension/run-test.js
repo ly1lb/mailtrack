@@ -50,6 +50,17 @@ fs.copyFileSync(path.join(EXT, 'content.css'), path.join(DIR, 'content.css'));
   results.subject = await page.locator('input[name="subjectbox"]').inputValue();
   results.bodyHtml = await page.locator('#body').innerHTML();
 
+  // 4b) Ar aptiko svetima sekikli gautame laiske?
+  results.trackedByBadge = await page.locator('.mt-tracked-by').count();
+  results.trackedByText = await page.locator('.mt-tracked-by').first().innerText().catch(() => '(nera)');
+  // 4c) Ar sablonu mygtukas YRA VIRS laisko teksto (ne apatineje juostoje)?
+  results.tplAboveBody = await page.evaluate(() => {
+    var bar = document.querySelector('.mt-tplbar');
+    var body = document.getElementById('body');
+    if (!bar || !body) return false;
+    return !!(bar.compareDocumentPosition(body) & Node.DOCUMENT_POSITION_FOLLOWING);
+  });
+
   // 5) Sekimo jungiklis persijungia?
   const tog = page.locator('.mt-track-toggle').first();
   results.toggleBefore = await tog.innerText();
