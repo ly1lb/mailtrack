@@ -32,6 +32,9 @@ Sudedamosios dalys:
 | Botų/skenerių atmetimas | dalinai | ✅ | ✅ | ✅ |
 | Telefonas (Gmail app) | ✅ (priedas) | ✅ | dalinai | ✅ (Gmail priedas) |
 | CSV eksportas | ❌ | ✅ | ✅ | ✅ |
+| Laiškų šablonai | ❌ | ✅ | ✅ | ✅ (skydelis + Gmail + telefonas) |
+| Suplanuoti priminimai/follow-up | ❌ | ✅ | ✅ | ✅ |
+| Suplanuotas siuntimas (send later) | ✅ (Gmail) | ✅ | ✅ | ✅ (per Gmail, sekimas veikia) |
 | Webhook / Zapier | ❌ | ❌ | dalinai | ✅ |
 | Duomenys jūsų nuosavybėje | ❌ | ❌ | ❌ | ✅ |
 | Kaina | 0 | €4–10/mėn | €15–50/mėn | serverio kaina |

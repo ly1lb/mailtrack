@@ -152,6 +152,48 @@ function onComposeInsertPixel(e) {
   }
 }
 
+// ---------- Šablonai (telefonui / kompiuteriui) ----------
+function onComposeTemplates(e) {
+  if (!getApiKey()) return settingsCard('Įveskite API raktą, kad matytumėte šablonus.');
+  var card = CardService.newCardBuilder()
+    .setHeader(CardService.newCardHeader().setTitle('Įterpti šabloną'));
+  var s = CardService.newCardSection();
+  try {
+    var d = api('GET', 'templates');
+    var list = (d && d.templates) || [];
+    if (!list.length) {
+      s.addWidget(CardService.newTextParagraph().setText('Šablonų nėra. Sukurkite juos skydelyje → Šablonai.'));
+    } else {
+      list.forEach(function (t) {
+        s.addWidget(CardService.newTextButton()
+          .setText(t.name + (t.subject ? ' — ' + t.subject : ''))
+          .setOnClickAction(CardService.newAction().setFunctionName('insertTemplateAction')
+            .setParameters({ id: String(t.id), subject: t.subject || '', body: t.body_html || '' })));
+      });
+    }
+  } catch (err) {
+    s.addWidget(CardService.newTextParagraph().setText('Klaida: ' + err.message));
+  }
+  card.addSection(s);
+  return card.build();
+}
+
+function insertTemplateAction(e) {
+  var p = e.commonEventObject.parameters || {};
+  try { api('POST', 'templates/' + p.id + '/use'); } catch (er) {}
+  var b = CardService.newUpdateDraftActionResponseBuilder();
+  if (p.subject) {
+    b.setUpdateDraftSubjectAction(CardService.newUpdateDraftSubjectAction()
+      .addUpdateSubject(p.subject));
+  }
+  if (p.body) {
+    b.setUpdateDraftBodyAction(CardService.newUpdateDraftBodyAction()
+      .addUpdateContent(p.body, CardService.ContentType.MUTABLE_HTML)
+      .setUpdateType(CardService.UpdateDraftBodyType.INSERT_AT_START));
+  }
+  return b.build();
+}
+
 // ---------- Sekamos nuorodos įterpimas (universalus veiksmas) ----------
 function onComposeInsertLink(e) {
   var f = e.commonEventObject.formInputs || {};

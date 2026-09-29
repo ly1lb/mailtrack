@@ -216,6 +216,40 @@ if ($path === 'documents' || preg_match('#^documents/(\d+)/delete$#', $path, $m)
     exit;
 }
 
+// ---------- Šablonai ----------
+if ($path === 'templates' || preg_match('#^templates/(\d+)/(delete)$#', $path, $m)) {
+    if ($isPost && isset($m[1])) {
+        DB::query('DELETE FROM templates WHERE id = ? AND user_id = ?', [(int)$m[1], $uid]);
+        flash('Šablonas ištrintas.');
+        redirect('templates');
+    }
+    if ($isPost) {
+        $id = (int)($_POST['id'] ?? 0);
+        $data = [
+            'name' => mb_substr(trim((string)($_POST['name'] ?? '')), 0, 190),
+            'subject' => mb_substr((string)($_POST['subject'] ?? ''), 0, 500),
+            'body_html' => mb_substr((string)($_POST['body_html'] ?? ''), 0, 50000),
+        ];
+        if ($data['name'] === '') {
+            flash('Įveskite šablono pavadinimą.', 'err');
+        } elseif ($id && DB::value('SELECT COUNT(*) FROM templates WHERE id = ? AND user_id = ?', [$id, $uid])) {
+            DB::update('templates', $data + ['updated_at' => now()], 'id = :id AND user_id = :u', ['id' => $id, 'u' => $uid]);
+            flash('Šablonas atnaujintas.');
+        } else {
+            DB::insert('templates', $data + ['user_id' => $uid, 'created_at' => now()]);
+            flash('Šablonas sukurtas. Jis pasirodys Gmail rašymo lange (mygtukas „Šablonai“).');
+        }
+        redirect('templates');
+    }
+    $templates = DB::all('SELECT * FROM templates WHERE user_id = ? ORDER BY updated_at DESC, id DESC', [$uid]);
+    $edit = null;
+    if (isset($_GET['edit'])) {
+        $edit = DB::row('SELECT * FROM templates WHERE id = ? AND user_id = ?', [(int)$_GET['edit'], $uid]);
+    }
+    render('templates', compact('templates', 'edit'));
+    exit;
+}
+
 // ---------- Nustatymai ----------
 if ($path === 'settings' || preg_match('#^settings/([a-z-]+)$#', $path, $m)) {
     $act = $m[1] ?? '';

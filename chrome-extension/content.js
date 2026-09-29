@@ -126,6 +126,16 @@
       });
       if (sendBtn.parentElement) sendBtn.parentElement.insertBefore(toggle, sendBtn.nextSibling);
 
+      // Šablonų mygtukas
+      var tplBtn = document.createElement('div');
+      tplBtn.className = 'mt-toggle mt-tpl';
+      tplBtn.setAttribute('role', 'button');
+      tplBtn.tabIndex = 0;
+      tplBtn.innerHTML = '<span class="mt-lbl">Šablonai ▾</span>';
+      tplBtn.title = 'Įterpti laiško šabloną';
+      tplBtn.addEventListener('click', function (e) { e.stopPropagation(); e.preventDefault(); openTemplateMenu(tplBtn, state); });
+      if (toggle.parentElement) toggle.parentElement.insertBefore(tplBtn, toggle.nextSibling);
+
       sendBtn.addEventListener('click', function () { beforeSend(state); }, true);
       dialog.addEventListener('keydown', function (e) {
         if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') beforeSend(state);
@@ -168,6 +178,68 @@
       });
     } catch (e) {
       log('beforeSend klaida: ' + (e && e.message), { stack: String(e && e.stack).slice(0, 200) });
+    }
+  }
+
+  // ================= ŠABLONAI =================
+  function openTemplateMenu(anchor, state) {
+    var existing = document.querySelector('.mt-menu');
+    if (existing) existing.remove();
+    var menu = document.createElement('div');
+    menu.className = 'mt-menu';
+    menu.textContent = 'Kraunama…';
+    document.body.appendChild(menu);
+    var r = anchor.getBoundingClientRect();
+    menu.style.left = Math.max(8, r.left) + 'px';
+    menu.style.top = (r.top - 8) + 'px';
+    menu.style.transform = 'translateY(-100%)';
+    apiGet('templates', function (d) {
+      menu.innerHTML = '';
+      var list = (d && d.templates) || [];
+      if (!list.length) {
+        var em = document.createElement('div');
+        em.className = 'mt-menu-item mt-menu-empty';
+        em.textContent = 'Šablonų nėra. Sukurkite skydelyje → Šablonai.';
+        menu.appendChild(em);
+        return;
+      }
+      list.forEach(function (t) {
+        var it = document.createElement('div');
+        it.className = 'mt-menu-item';
+        it.textContent = t.name + (t.subject ? ' — ' + t.subject : '');
+        it.addEventListener('click', function () {
+          insertTemplate(state, t);
+          apiPost('templates/' + t.id + '/use', {}, function () {});
+          menu.remove();
+        });
+        menu.appendChild(it);
+      });
+    });
+    setTimeout(function () {
+      document.addEventListener('click', function close(ev) {
+        if (!menu.contains(ev.target) && ev.target !== anchor) { menu.remove(); document.removeEventListener('click', close); }
+      });
+    }, 10);
+  }
+
+  function insertTemplate(state, t) {
+    try {
+      if (t.subject) {
+        var subj = state.dialog.querySelector('input[name="subjectbox"]');
+        if (subj && !subj.value) {
+          subj.value = t.subject;
+          subj.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+      }
+      if (t.body_html && state.body) {
+        var div = document.createElement('div');
+        div.innerHTML = t.body_html;
+        // įterpiam šablono turinį į kūno pradžią (prieš parašą)
+        state.body.insertBefore(div, state.body.firstChild);
+        state.body.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+    } catch (e) {
+      log('Šablono įterpimo klaida: ' + (e && e.message));
     }
   }
 

@@ -130,6 +130,15 @@ try {
         json_out(['ok' => true, 'last_id' => $last, 'items' => $items]);
     }
 
+    if ($sub === 'templates' && $method === 'GET') {
+        $rows = DB::all('SELECT id, name, subject, body_html FROM templates WHERE user_id = ? ORDER BY use_count DESC, name ASC LIMIT 100', [$user['id']]);
+        json_out(['ok' => true, 'templates' => $rows]);
+    }
+    if (preg_match('#^templates/(\d+)/use$#', $sub, $mt) && $method === 'POST') {
+        DB::query('UPDATE templates SET use_count = use_count + 1 WHERE id = ? AND user_id = ?', [(int)$mt[1], $user['id']]);
+        json_out(['ok' => true]);
+    }
+
     if ($sub === 'log' && $method === 'POST') {
         $in = json_input();
         $lvl = in_array($in['level'] ?? '', ['debug', 'info', 'warning', 'error'], true) ? $in['level'] : 'warning';

@@ -45,3 +45,24 @@
 }
 .mt-list-badge.on { color: #16803c; }
 
+.mt-tpl { color: #1a73e8; }
+.mt-menu {
+  position: fixed;
+  z-index: 99999;
+  min-width: 240px;
+  max-width: 360px;
+  max-height: 320px;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid #dadce0;
+  border-radius: 10px;
+  box-shadow: 0 8px 28px rgba(0,0,0,.22);
+  padding: 6px;
+  font: 13px/1.4 "Google Sans", Roboto, Arial, sans-serif;
+  color: #202124;
+}
+.mt-menu-item { padding: 8px 10px; border-radius: 6px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mt-menu-item:hover { background: #f1f3f4; }
+.mt-menu-empty { color: #80868b; white-space: normal; cursor: default; }
+.mt-menu-empty:hover { background: transparent; }
+

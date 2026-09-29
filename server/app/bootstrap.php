@@ -42,6 +42,23 @@ try {
     exit('Duomenų bazė nepasiekiama. Klaidos ID: ' . Logger::requestId());
 }
 
+// Lengvos migracijos – naujos lentelės esamiems diegimams (nereikia iš naujo diegti).
+try {
+    $auto = DB::driver() === 'sqlite' ? 'INTEGER PRIMARY KEY AUTOINCREMENT' : 'INT UNSIGNED AUTO_INCREMENT PRIMARY KEY';
+    DB::pdo()->exec("CREATE TABLE IF NOT EXISTS templates (
+        id $auto,
+        user_id INT NOT NULL,
+        name VARCHAR(190) NOT NULL,
+        subject VARCHAR(500) NOT NULL DEFAULT '',
+        body_html TEXT NULL,
+        use_count INT NOT NULL DEFAULT 0,
+        created_at DATETIME NOT NULL,
+        updated_at DATETIME NULL
+    )");
+} catch (Throwable $e) {
+    Logger::warning('Migracijos klaida: ' . $e->getMessage());
+}
+
 function start_session(): void
 {
     if (session_status() === PHP_SESSION_ACTIVE) {

@@ -27,6 +27,10 @@
           {
             "text": "Įterpti sekimą",
             "runFunction": "onComposeInsertPixel"
+          },
+          {
+            "text": "Įterpti šabloną",
+            "runFunction": "onComposeTemplates"
           }
         ],
         "draftAccess": "METADATA"
