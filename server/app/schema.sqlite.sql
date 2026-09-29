@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS users (
   report_hour TINYINT NOT NULL DEFAULT 8,
   last_report_date VARCHAR(10) NOT NULL DEFAULT '',
   ignore_seconds INT NOT NULL DEFAULT 20,
+  prefetch_seconds INT NOT NULL DEFAULT 150,
   auto_ignore_ips TINYINT NOT NULL DEFAULT 1,
   created_at DATETIME NOT NULL,
   last_login_at DATETIME NULL

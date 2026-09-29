@@ -55,6 +55,22 @@ try {
         created_at DATETIME NOT NULL,
         updated_at DATETIME NULL
     )");
+
+    // Naujos users stulpeliai esamiems diegimams
+    $cols = [];
+    if (DB::driver() === 'sqlite') {
+        foreach (DB::all('PRAGMA table_info(users)') as $c) {
+            $cols[] = $c['name'];
+        }
+    } else {
+        foreach (DB::all('SHOW COLUMNS FROM users') as $c) {
+            $cols[] = $c['Field'];
+        }
+    }
+    if (!in_array('prefetch_seconds', $cols, true)) {
+        DB::pdo()->exec('ALTER TABLE users ADD COLUMN prefetch_seconds INT NOT NULL DEFAULT 150');
+        Logger::info('Migracija: pridėtas users.prefetch_seconds');
+    }
 } catch (Throwable $e) {
     Logger::warning('Migracijos klaida: ' . $e->getMessage());
 }

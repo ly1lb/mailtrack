@@ -17,6 +17,10 @@ $tzs = DateTimeZone::listIdentifiers();
     <label>Ignoruoti atidarymus pirmas N sekundžių po išsiuntimo</label>
     <input type="number" name="ignore_seconds" min="0" max="600" value="<?= (int)$u['ignore_seconds'] ?>">
     <div class="help">Gmail iškart parodo išsiųstą laišką jums pačiam – tai nėra gavėjo atidarymas. Rekomenduojama 15–30 s.</div>
+
+    <label>Gmail „prefetch“ langas (sek.)</label>
+    <input type="number" name="prefetch_seconds" min="0" max="1800" value="<?= (int)($u['prefetch_seconds'] ?? 150) ?>">
+    <div class="help"><b>Svarbu.</b> Gmail iš anksto užkrauna laiško paveikslėlius vos jam atkeliavus (jei gavėjas turi atidarytą Gmail) – pikselis suveikia <u>be žmogaus</u>, dažniausiai per 1–2 min. Šiame lange gauti atidarymai <b>per Gmail proxy</b> nebus skaičiuojami. Rekomenduojama 150 s. Padidinkite, jei vis tiek rodo „atidaryta“ iškart po išsiuntimo; sumažinkite, jei praleidžia labai greitus tikrus atidarymus. Kitų klientų (Apple Mail, Outlook) atidarymams netaikoma.</div>
     <label class="chk"><input type="checkbox" name="auto_ignore_ips" <?= $u['auto_ignore_ips'] ? 'checked' : '' ?>> Automatiškai įsiminti mano IP adresus (iš skydelio ir plėtinio) ir jų atidarymų neskaičiuoti</label>
   </div>
 

@@ -270,6 +270,7 @@ if ($path === 'settings' || preg_match('#^settings/([a-z-]+)$#', $path, $m)) {
                     'daily_report' => isset($_POST['daily_report']) ? 1 : 0,
                     'report_hour' => max(0, min(23, (int)($_POST['report_hour'] ?? 8))),
                     'ignore_seconds' => max(0, min(600, (int)($_POST['ignore_seconds'] ?? 20))),
+                    'prefetch_seconds' => max(0, min(1800, (int)($_POST['prefetch_seconds'] ?? 150))),
                     'auto_ignore_ips' => isset($_POST['auto_ignore_ips']) ? 1 : 0,
                 ], 'id = :id', ['id' => $uid]);
                 flash('Nustatymai išsaugoti.');

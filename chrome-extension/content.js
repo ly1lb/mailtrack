@@ -278,11 +278,20 @@
   // ================= ŠABLONAI =================
   function openTemplateMenu(anchor, state) {
     var existing = document.querySelector('.mt-menu');
-    if (existing) existing.remove();
+    if (existing) { existing.remove(); }
     var menu = document.createElement('div');
     menu.className = 'mt-menu';
+    // Kritinius stilius rašom tiesiai į elementą – kad meniu būtų matomas net jei
+    // content.css neįsikrautų arba Gmail rašymo langas turėtų aukštesnį z-index.
+    menu.setAttribute('style', [
+      'position:fixed', 'z-index:2147483647', 'min-width:260px', 'max-width:380px',
+      'max-height:320px', 'overflow-y:auto', 'background:#fff', 'color:#202124',
+      'border:1px solid #dadce0', 'border-radius:10px',
+      'box-shadow:0 8px 28px rgba(0,0,0,.28)', 'padding:6px',
+      'font:13px/1.4 Roboto,Arial,sans-serif'
+    ].join(';'));
     menu.textContent = 'Kraunama…';
-    document.body.appendChild(menu);
+    document.documentElement.appendChild(menu);
     function place() {
       var r = anchor.getBoundingClientRect();
       var mh = menu.offsetHeight || 200;
@@ -296,21 +305,28 @@
       }
     }
     place();
-    apiGet('templates', function (d) {
+    function note(text) {
       menu.innerHTML = '';
-      var list = (d && d.templates) || [];
-      if (!list.length) {
-        var em = document.createElement('div');
-        em.className = 'mt-menu-item mt-menu-empty';
-        em.textContent = 'Šablonų nėra. Sukurkite skydelyje → Šablonai.';
-        menu.appendChild(em);
-        return;
-      }
+      var em = document.createElement('div');
+      em.setAttribute('style', 'padding:10px;color:#80868b;white-space:normal');
+      em.textContent = text;
+      menu.appendChild(em);
+      place();
+    }
+    apiGet('templates', function (d) {
+      if (!d) { note('Nepavyko pasiekti serverio. Patikrinkite plėtinio nustatymus (serverio adresas ir API raktas).'); return; }
+      var list = d.templates || [];
+      if (!list.length) { note('Šablonų nėra. Sukurkite skydelyje → Šablonai.'); return; }
+      menu.innerHTML = '';
       list.forEach(function (t) {
         var it = document.createElement('div');
         it.className = 'mt-menu-item';
+        it.setAttribute('style', 'padding:9px 10px;border-radius:6px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis');
         it.textContent = t.name + (t.subject ? ' — ' + t.subject : '');
-        it.addEventListener('click', function () {
+        it.addEventListener('mouseenter', function () { it.style.background = '#f1f3f4'; });
+        it.addEventListener('mouseleave', function () { it.style.background = 'transparent'; });
+        it.addEventListener('click', function (ev) {
+          ev.stopPropagation();
           insertTemplate(state, t);
           apiPost('templates/' + t.id + '/use', {}, function () {});
           menu.remove();
@@ -328,22 +344,30 @@
 
   function insertTemplate(state, t) {
     try {
+      // Kūną randam iš naujo – Gmail gali būti perpiešęs rašymo langą
+      var body = (state.dialog && getBodyEl(state.dialog)) || state.body;
       if (t.subject) {
-        var subj = state.dialog.querySelector('input[name="subjectbox"]');
+        var subj = state.dialog && state.dialog.querySelector('input[name="subjectbox"]');
         if (subj && !subj.value) {
           subj.value = t.subject;
           subj.dispatchEvent(new Event('input', { bubbles: true }));
+          subj.dispatchEvent(new Event('change', { bubbles: true }));
         }
       }
-      if (t.body_html && state.body) {
+      if (t.body_html && body) {
+        body.focus();
         var div = document.createElement('div');
         div.innerHTML = t.body_html;
         // įterpiam šablono turinį į kūno pradžią (prieš parašą)
-        state.body.insertBefore(div, state.body.firstChild);
-        state.body.dispatchEvent(new Event('input', { bubbles: true }));
+        body.insertBefore(div, body.firstChild);
+        body.dispatchEvent(new Event('input', { bubbles: true }));
+        state.body = body;
+      } else if (!body) {
+        alert('MailTrack Pro: nepavyko rasti laiško teksto lauko. Perkraukite Gmail (F5) ir bandykite dar kartą.');
       }
     } catch (e) {
       log('Šablono įterpimo klaida: ' + (e && e.message));
+      alert('MailTrack Pro: šablono įterpti nepavyko – ' + (e && e.message));
     }
   }
 

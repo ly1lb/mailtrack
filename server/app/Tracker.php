@@ -263,9 +263,15 @@ final class Tracker
         if ($p['bot']) {
             return 'Botas / saugumo skeneris';
         }
-        // Gmail/Yahoo proxy IP kaskart skiriasi ir laiškas dažnai užkraunamas kelis
-        // kartus (prefetch pristatant + realus atidarymas). Todėl proxy atidarymus
-        // sujungiam ilgesniame lange ignoruodami IP/UA – kad nebūtų dvigubo skaičiaus.
+        // Gmail iš anksto užkrauna (prefetch) visus paveikslėlius vos laiškui atkeliavus,
+        // jei gavėjas turi aktyvią Gmail sesiją – pikselis suveikia BE žmogaus.
+        // Tai įvyksta paprastai per 1–2 min po išsiuntimo, todėl tokius proxy
+        // atidarymus ignoruojame (tikras atidarymas užfiksuojamas vėliau).
+        if ($table === 'opens' && $p['proxy'] !== '' && $age < (int)($user['prefetch_seconds'] ?? 150)) {
+            return 'Gmail išankstinis užkrovimas (prefetch) – ne tikras atidarymas';
+        }
+        // Proxy IP kaskart skiriasi, o laiškas gali būti užkraunamas kelis kartus,
+        // todėl proxy atidarymus sujungiam lange ignoruodami IP/UA.
         if ($table === 'opens' && $p['proxy'] !== '') {
             $dupProxy = DB::value(
                 "SELECT COUNT(*) FROM opens WHERE email_id = ? AND proxy = ? AND ignored = 0 AND opened_at >= ?",
