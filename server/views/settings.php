@@ -37,6 +37,7 @@ $tzs = DateTimeZone::listIdentifiers();
     <label class="chk"><input type="checkbox" name="notify_email" <?= $u['notify_email'] ? 'checked' : '' ?>> El. paštu (<?= e($u['email']) ?>)</label>
     <label class="chk"><input type="checkbox" name="notify_telegram" <?= $u['notify_telegram'] ? 'checked' : '' ?>> Telegram (momentiniai pranešimai telefone)</label>
     <label class="chk"><input type="checkbox" name="notify_clicks" <?= $u['notify_clicks'] ? 'checked' : '' ?>> Pranešti apie nuorodų paspaudimus</label>
+    <label class="chk"><input type="checkbox" name="notify_old_opens" <?= (!isset($u['notify_old_opens']) || $u['notify_old_opens']) ? 'checked' : '' ?>> Visada pranešti, kai atidaromas <b>senas</b> laiškas (svarbus signalas – kaip Mailsuite)</label>
     <label>Kada pranešti apie atidarymą</label>
     <select name="notify_mode">
       <option value="every" <?= $u['notify_mode'] === 'every' ? 'selected' : '' ?>>Kiekvieną kartą (rekomenduojama)</option>

@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 define('APP_ROOT', dirname(__DIR__));
-define('APP_VERSION', '1.0.0');
+define('APP_VERSION', '1.0.1');
 
 require __DIR__ . '/Logger.php';
 require __DIR__ . '/DB.php';
@@ -78,6 +78,14 @@ try {
     if (!in_array('prefetch_mode', $cols, true)) {
         DB::pdo()->exec("ALTER TABLE users ADD COLUMN prefetch_mode VARCHAR(10) NOT NULL DEFAULT 'flag'");
         Logger::info('Migracija: pridėtas users.prefetch_mode');
+    }
+    if (!in_array('notify_old_opens', $cols, true)) {
+        DB::pdo()->exec('ALTER TABLE users ADD COLUMN notify_old_opens TINYINT NOT NULL DEFAULT 1');
+        Logger::info('Migracija: pridėtas users.notify_old_opens');
+    }
+    if (!in_array('old_open_days', $cols, true)) {
+        DB::pdo()->exec('ALTER TABLE users ADD COLUMN old_open_days INT NOT NULL DEFAULT 7');
+        Logger::info('Migracija: pridėtas users.old_open_days');
     }
 } catch (Throwable $e) {
     Logger::warning('Migracijos klaida: ' . $e->getMessage());

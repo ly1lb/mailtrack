@@ -529,7 +529,7 @@
         subjectIndex = {};
         d.emails.forEach(function (e) {
           statusMap[e.uid] = e;
-          var key = (e.subject || '').trim().toLowerCase();
+          var key = normSubject(e.subject);
           if (key) {
             // jei tema kartojasi – laikom naujausią (sąrašas nuo naujausių)
             if (!subjectIndex[key]) subjectIndex[key] = e;
@@ -540,36 +540,48 @@
     });
   }
 
+  // Temą normalizuojam: nuimam Re:/Fwd:/Fw: priešdėlius ir sutraukiam tarpus,
+  // kad sekamą laišką atpažintume ir gijoje (atsakymuose), ir persiųstą.
+  function normSubject(s) {
+    s = String(s || '').toLowerCase().trim();
+    var prev;
+    do { prev = s; s = s.replace(/^\s*(re|fwd|fw|atsak|persi)\s*:\s*/i, ''); } while (s !== prev);
+    return s.replace(/\s+/g, ' ').trim();
+  }
+
   function decorateList() {
     if (!ready) return;
-    // tik "Išsiųsti" rodinyje – ten temos atitikimas patikimesnis
-    if (!/#sent/i.test(location.hash)) {
-      document.querySelectorAll('.mt-list-badge').forEach(function (n) { n.remove(); });
-      return;
-    }
+    // Rodom VISUOSE sąrašuose (Gauti, Išsiųsti, Visi, paieška, etiketės) – kaip
+    // Mailsuite žalią tašką. Sekamą laišką atpažįstam pagal normalizuotą temą,
+    // todėl matomas ir gijoje su atsakymais.
     refreshStatusIndex(function () {
       document.querySelectorAll('tr.zA').forEach(function (row) {
-        if (row.__mtBadge) {
-          // atnaujinam esamą pagal statusMap
-        }
-        var subjEl = row.querySelector('.bog, .y6 span[id], .bqe, .xT .y6 span');
-        var subj = subjEl ? (subjEl.textContent || '').trim().toLowerCase() : '';
+        // Temos elementas – bandom kelis Gmail variantus
+        var subjEl = row.querySelector('.bog, .y6 span[id], .bqe, .xT .y6 span, .y6 > span');
+        var subj = subjEl ? normSubject(subjEl.textContent) : '';
         if (!subj) return;
         var e = subjectIndex[subj];
-        var cell = row.querySelector('.xW.xY, td.xY, .apU') || subjEl && subjEl.closest('td');
-        if (!e) return;
-        var opened = e.open_count > 0;
         var badge = row.querySelector('.mt-list-badge');
+        if (!e) {
+          // tema nebeatitinka sekamo laiško – nuimam seną ženklą, jei buvo
+          if (badge) badge.remove();
+          row.__mtBadge = false;
+          return;
+        }
+        var opened = e.open_count > 0;
         if (!badge) {
           badge = document.createElement('span');
           badge.className = 'mt-list-badge';
+          // dedam prie temos – matomas bet kuriame rodinyje
           var anchor = row.querySelector('.xW, .y6') || subjEl;
           if (anchor && anchor.parentElement) anchor.parentElement.insertBefore(badge, anchor);
           else return;
         }
         badge.classList.toggle('on', opened);
-        badge.textContent = opened ? '✓✓' : '✓';
-        badge.title = opened ? ('Atidaryta ' + e.open_count + ' k.') : 'Išsiųsta, neatidaryta';
+        badge.textContent = '●';
+        badge.title = opened
+          ? ('MailTrack: atidaryta ' + e.open_count + ' k.' + (e.last_open_at ? ' · ' + fmtShort(e.last_open_at) : ''))
+          : 'MailTrack: sekama · dar neatidaryta';
         row.__mtBadge = true;
       });
     });

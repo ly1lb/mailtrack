@@ -287,6 +287,7 @@ if ($path === 'settings' || preg_match('#^settings/([a-z-]+)$#', $path, $m)) {
                     'notify_email' => isset($_POST['notify_email']) ? 1 : 0,
                     'notify_telegram' => isset($_POST['notify_telegram']) ? 1 : 0,
                     'notify_clicks' => isset($_POST['notify_clicks']) ? 1 : 0,
+                    'notify_old_opens' => isset($_POST['notify_old_opens']) ? 1 : 0,
                     'notify_mode' => in_array($_POST['notify_mode'] ?? '', ['every', 'first', 'off'], true) ? $_POST['notify_mode'] : 'every',
                     'notify_skip_prefetch' => isset($_POST['notify_skip_prefetch']) ? 1 : 0,
                     'telegram_chat_id' => preg_replace('/[^0-9-]/', '', (string)($_POST['telegram_chat_id'] ?? '')),

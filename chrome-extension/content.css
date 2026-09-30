@@ -36,14 +36,14 @@
 
 .mt-list-badge {
   display: inline-block;
-  min-width: 20px;
-  margin-right: 6px;
-  font-weight: 800;
-  letter-spacing: -1px;
-  color: #9aa0a6;
+  margin-right: 8px;
+  font-size: 13px;
+  line-height: 1;
+  color: #9aa0a6;            /* pilka – sekama, dar neatidaryta */
   vertical-align: middle;
+  cursor: default;
 }
-.mt-list-badge.on { color: #16803c; }
+.mt-list-badge.on { color: #1e8e3e; } /* žalia – atidaryta (kaip Mailsuite) */
 
 .mt-tpl { color: #1a73e8; }
 

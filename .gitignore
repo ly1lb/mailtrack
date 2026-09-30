@@ -8,3 +8,11 @@ server/data/uploads/*
 server/data/sessions/
 server/data/cron.lock
 *.DS_Store
+
+node_modules/
+package-lock.json
+package.json
+tests/extension/content-test.js
+tests/extension/sha256.js
+tests/extension/content.css
+tests/extension/shot-*.png

@@ -1,0 +1,30 @@
+<!doctype html><html><head><meta charset="utf-8"></head><body>
+<!-- Imituojam GAUTŲ sąrašą (ne #sent). Viena gija su "Re:" priešdėliu. -->
+<table><tbody>
+  <tr class="zA"><td class="xW"><span></span></td><td class="xY"><div class="y6"><span class="bog">Re: Fotosesijos pasiūlymas</span></div></td></tr>
+  <tr class="zA"><td class="xW"><span></span></td><td class="xY"><div class="y6"><span class="bog">Sąskaita iš PayPal</span></div></td></tr>
+  <tr class="zA"><td class="xW"><span></span></td><td class="xY"><div class="y6"><span class="bog">Priminimas apie laišką</span></div></td></tr>
+</tbody></table>
+<script>
+window.chrome = {
+  runtime: {
+    lastError: null, getManifest: function(){return{version:'1.0.0'}},
+    sendMessage: function(msg, cb){ setTimeout(function(){
+      if(msg.type==='config') cb({ok:true,cfg:{serverUrl:'https://track.test',apiKey:'k'.repeat(30),linkSecret:'abc',trackByDefault:true,trackLinks:true}});
+      else if(msg.type==='api' && String(msg.path).indexOf('emails')===0)
+        cb({ok:true,data:{ok:true,emails:[
+          {uid:'aaa',subject:'Fotosesijos pasiūlymas',open_count:3,last_open_at:'2026-09-30T10:00:00Z'},
+          {uid:'bbb',subject:'Priminimas apie laišką',open_count:0,last_open_at:null}
+        ]}});
+      else if(msg.type==='api' && String(msg.path).indexOf('activity')===0) cb({ok:true,data:{ok:true,items:[],opens_today:0,tracked:0}});
+      else cb({ok:true,data:{ok:true}});
+    },5); },
+    openOptionsPage:function(){}, onMessage:{addListener:function(){}}
+  },
+  storage:{sync:{get:function(d,cb){cb(d)}},onChanged:{addListener:function(){}},local:{get:function(d,cb){cb(d)}}}
+};
+location.hash = '#inbox';
+</script>
+<script src="sha256.js"></script>
+<script src="content-test.js"></script>
+</body></html>

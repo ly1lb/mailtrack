@@ -147,15 +147,32 @@ final class Tracker
         } else { // 'first'
             $push = $realCount === 1;
         }
+
+        // Senų laiškų atidarymai (kaip Mailsuite): jei laiškas išsiųstas seniai, o
+        // gavėjas jį atidaro dabar – tai vertingiausias signalas, todėl pranešam
+        // visada (nebent pranešimai visiškai išjungti arba funkcija išjungta).
+        $ageDays = (time() - strtotime($email['created_at'] . ' UTC')) / 86400;
+        $oldDays = (int)($user['old_open_days'] ?? 7);
+        $isOld = !$suspect && $oldDays > 0 && $ageDays >= $oldDays;
+        if ($isOld && $mode !== 'off' && !empty($user['notify_old_opens'])) {
+            $push = true;
+        }
+        $title = $isOld
+            ? '🔔 Atidarytas senas laiškas (prieš ' . (int)round($ageDays) . ' d. siųstas): ' . $subj
+            : ($count === 1 ? '✓✓ Atidarytas: ' : "✓✓ Atidarytas ($count k.): ") . $subj;
+        $bodyTxt = ($to ? "Gavėjas: $to\n" : '')
+            . ($isOld ? 'Išsiųsta: ' . fmt_dt($email['created_at']) . ' (prieš ' . (int)round($ageDays) . " d.)\n" : '')
+            . $where;
+
         Notifier::notify(
             $user,
             'open',
-            ($count === 1 ? '✓✓ Atidarytas: ' : "✓✓ Atidarytas ($count k.): ") . $subj,
-            ($to ? "Gavėjas: $to\n" : '') . $where,
+            $title,
+            $bodyTxt,
             (int)$email['id'],
             null,
             $push,
-            ['email_uid' => $email['uid'], 'subject' => $email['subject'], 'open_count' => $count]
+            ['email_uid' => $email['uid'], 'subject' => $email['subject'], 'open_count' => $count, 'old_email' => $isOld ? 1 : 0, 'age_days' => round($ageDays, 2)]
         );
     }
 

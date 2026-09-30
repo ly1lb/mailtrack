@@ -12,6 +12,8 @@ CREATE TABLE IF NOT EXISTS users (
   notify_mode VARCHAR(10) NOT NULL DEFAULT 'every',
   notify_skip_prefetch TINYINT NOT NULL DEFAULT 1,
   notify_clicks TINYINT NOT NULL DEFAULT 1,
+  notify_old_opens TINYINT NOT NULL DEFAULT 1,
+  old_open_days INT NOT NULL DEFAULT 7,
   telegram_chat_id VARCHAR(64) NOT NULL DEFAULT '',
   webhook_url VARCHAR(500) NOT NULL DEFAULT '',
   daily_report TINYINT NOT NULL DEFAULT 1,
