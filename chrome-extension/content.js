@@ -14,6 +14,36 @@
   var statusMap = {};        // uid -> {open_count, ...}
   var subjectIndex = {};     // "subject|recip" -> email (best-effort sąrašui)
   var lastStatusFetch = 0;
+  var trackSenders = {};     // siuntėjų domenai, kurių laiškuose aptikome sekiklį (rodom tašką sąraše)
+
+  function loadTrackSenders() {
+    try {
+      chrome.storage.local.get({ trackSenders: {} }, function (s) {
+        if (chrome.runtime.lastError) return;
+        trackSenders = s.trackSenders || {};
+      });
+    } catch (e) {}
+  }
+  function rememberTrackSender(domain, label) {
+    if (!domain) return;
+    if (trackSenders[domain]) return;
+    trackSenders[domain] = label || domain;
+    try {
+      // apribojam iki ~800 įrašų, kad neaugtų be galo
+      var keys = Object.keys(trackSenders);
+      if (keys.length > 800) { delete trackSenders[keys[0]]; }
+      chrome.storage.local.set({ trackSenders: trackSenders });
+    } catch (e) {}
+    // ką tik sužinojom – perpiešiam sąrašą, kad iškart atsirastų taškas
+    safe('decorateList', decorateList);
+  }
+  function domainOf(email) {
+    var at = String(email || '').lastIndexOf('@');
+    if (at === -1) return '';
+    var host = email.slice(at + 1).toLowerCase().trim();
+    var parts = host.split('.');
+    return parts.length >= 2 ? parts.slice(-2).join('.') : host;
+  }
 
   function log(message, context) {
     try { chrome.runtime.sendMessage({ type: 'log', message: message, context: context }); } catch (e) {}
@@ -435,7 +465,7 @@
     [/hubs\.ly/i, 'HubSpot'],
     [/mandrillapp\.com/i, 'Mandrill'],
     [/postmarkapp\.com|pstmrk\.it/i, 'Postmark'],
-    [/mailerlite\.com|ml\.mailerlite/i, 'MailerLite'],
+    [/mailerlite\.com|ml\.mailerlite|mlsend\.com|mlsend\.net/i, 'MailerLite'],
     [/constantcontact\.com|rs6\.net|ctctcdn/i, 'Constant Contact'],
     [/activehosted\.com|activecampaign/i, 'ActiveCampaign'],
     [/getresponse\.com|grsm\.io/i, 'GetResponse'],
@@ -552,16 +582,32 @@
         // jei liko nekrautų paveikslėlių – dar bandysim kitą ciklą (per observer/pollFab)
         return;
       }
+      // Trumpas ženklas: tik 🔴 + sekiklio pavadinimas (be litanijos).
       var b = document.createElement('div');
       b.className = 'mt-tracked-by';
-      b.innerHTML = '<b>🔴 Šis laiškas jus seka</b> · siuntėjas mato, ar/kada atidarėte · '
-        + names.map(function (n) { return '<span class="mt-trk-name"></span>'; }).join(' ');
-      // saugiai įrašom pavadinimus (be HTML injekcijos)
-      var spans = b.querySelectorAll('.mt-trk-name');
-      names.forEach(function (n, i) { if (spans[i]) spans[i].textContent = n; });
-      b.title = 'Aptiktas sekimo pikselis (' + names.join(', ') + '). Kad nesektų – Gmail nustatymuose išjunkite automatinį paveikslėlių rodymą.';
+      b.textContent = '🔴 ' + names.join(' · ');
+      b.title = 'Šis laiškas jus seka – siuntėjas mato, ar ir kada jį atidarėte (' + names.join(', ') + '). Kad nesektų, Gmail nustatymuose išjunkite automatinį paveikslėlių rodymą.';
       insertBefore(b, msg);
+
+      // Įsimenam siuntėjo domeną – kad tašką galėtume rodyti ir laiškų SĄRAŠE.
+      var sender = senderOf(msg);
+      if (sender) rememberTrackSender(domainOf(sender), names[0]);
     });
+  }
+
+  /* Atidaryto laiško siuntėjo el. paštas (iš antraštės). Reikia, kad sąraše
+     galėtume pažymėti tašku laiškus iš to paties sekančio siuntėjo. */
+  function senderOf(msg) {
+    var box = msg.closest('.gs, .adn, .h7, [data-message-id]') || msg.parentElement;
+    for (var hop = 0; box && hop < 4; hop++) {
+      var el = box.querySelector('span[email], [data-hovercard-id]');
+      if (el) {
+        var em = el.getAttribute('email') || el.getAttribute('data-hovercard-id') || '';
+        if (em.indexOf('@') !== -1) return em;
+      }
+      box = box.parentElement;
+    }
+    return '';
   }
 
   /* SVARBU: įterpiam tik į TIKRĄ tėvinį elementą.
@@ -641,14 +687,32 @@
     // todėl matomas ir gijoje su atsakymais.
     refreshStatusIndex(function () {
       document.querySelectorAll('tr.zA').forEach(function (row) {
-        // Temos elementas – bandom kelis Gmail variantus
         var subjEl = row.querySelector('.bog, .y6 span[id], .bqe, .xT .y6 span, .y6 > span');
+        var anchor = row.querySelector('.xW, .y6') || subjEl;
+
+        // (A) RAUDONAS taškas: laiškas iš siuntėjo, kurio laiškuose aptikome sekiklį
+        //     (kaip Mailsuite – matai dar sąraše, kad tave seka).
+        var sEl = row.querySelector('.yW span[email], .zF[email], span[email], [data-hovercard-id]');
+        var sEmail = sEl ? (sEl.getAttribute('email') || sEl.getAttribute('data-hovercard-id') || '') : '';
+        var sDom = domainOf(sEmail);
+        var trk = row.querySelector('.mt-list-trk');
+        if (sDom && trackSenders[sDom]) {
+          if (!trk && anchor && anchor.parentElement) {
+            trk = document.createElement('span');
+            trk.className = 'mt-list-trk';
+            trk.textContent = '●';
+            anchor.parentElement.insertBefore(trk, anchor);
+          }
+          if (trk) trk.title = 'Šis siuntėjas jus seka (' + trackSenders[sDom] + ') – mato, ar atidarėte laišką.';
+        } else if (trk) {
+          trk.remove();
+        }
+
+        // (B) ŽALIAS/PILKAS taškas: MŪSŲ pačių sekamas laiškas (pagal temą)
         var subj = subjEl ? normSubject(subjEl.textContent) : '';
-        if (!subj) return;
-        var e = subjectIndex[subj];
+        var e = subj ? subjectIndex[subj] : null;
         var badge = row.querySelector('.mt-list-badge');
         if (!e) {
-          // tema nebeatitinka sekamo laiško – nuimam seną ženklą, jei buvo
           if (badge) badge.remove();
           row.__mtBadge = false;
           return;
@@ -657,8 +721,6 @@
         if (!badge) {
           badge = document.createElement('span');
           badge.className = 'mt-list-badge';
-          // dedam prie temos – matomas bet kuriame rodinyje
-          var anchor = row.querySelector('.xW, .y6') || subjEl;
           if (anchor && anchor.parentElement) anchor.parentElement.insertBefore(badge, anchor);
           else return;
         }
@@ -779,6 +841,7 @@
   } catch (e) { /* plėtinys perkraunamas */ }
 
   function boot() {
+    loadTrackSenders();
     loadCfg(function () {
       safe('observe', function () { observer.observe(document.body, { childList: true, subtree: true }); });
       runCycle();

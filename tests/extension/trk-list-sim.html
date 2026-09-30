@@ -1,0 +1,31 @@
+<!doctype html><html><head><meta charset="utf-8"></head><body>
+<!-- Atidarytas MailerLite laiškas su siuntėjo antrašte + proxy pikselis -->
+<div class="gs" data-message-id="m1">
+  <span email="news@company.lt" data-hovercard-id="news@company.lt">Company Naujienlaiškis</span>
+  <div class="a3s" id="opened">
+    <p>Naujienlaiškis</p>
+    <img src="https://ci3.googleusercontent.com/meips/AAA=s0-d-e1-ft#https://track.mlsend.com/o/xyz.gif" width="1" height="1">
+  </div>
+</div>
+
+<!-- Sąrašas: dvi eilutės nuo TO PATIES siuntėjo (turi atsirasti raudonas taskas) + viena kito -->
+<table><tbody>
+  <tr class="zA"><td class="xW"><span></span></td><td><span class="yW"><span email="news@company.lt">Company</span></span><div class="y6"><span class="bog">Rugsėjo pasiūlymai</span></div></td></tr>
+  <tr class="zA"><td class="xW"><span></span></td><td><span class="yW"><span email="news@company.lt">Company</span></span><div class="y6"><span class="bog">Spalio naujienos</span></div></td></tr>
+  <tr class="zA"><td class="xW"><span></span></td><td><span class="yW"><span email="draugas@gmail.com">Draugas</span></span><div class="y6"><span class="bog">Labas</span></div></td></tr>
+</tbody></table>
+
+<script>
+window.chrome = { runtime: { lastError:null, getManifest:function(){return{version:'1.0.0'}},
+  sendMessage:function(msg,cb){ setTimeout(function(){
+    if(msg.type==='config') cb({ok:true,cfg:{serverUrl:'https://track.test',apiKey:'k'.repeat(30),linkSecret:'a',trackByDefault:true,trackLinks:true}});
+    else if(msg.type==='api'&&String(msg.path).indexOf('activity')===0) cb({ok:true,data:{ok:true,items:[],opens_today:0,tracked:0}});
+    else if(msg.type==='api'&&String(msg.path).indexOf('emails')===0) cb({ok:true,data:{ok:true,emails:[]}});
+    else cb({ok:true,data:{ok:true}});
+  },5);}, openOptionsPage:function(){}, onMessage:{addListener:function(){}} },
+  storage:{sync:{get:function(d,cb){cb(d)}},onChanged:{addListener:function(){}},
+    local:(function(){var store={trackSenders:{}};return {get:function(d,cb){cb({trackSenders:store.trackSenders||d.trackSenders})},set:function(o,cb){Object.assign(store,o);cb&&cb();}};})()} };
+location.hash='#inbox';
+</script>
+<script src="sha256.js"></script><script src="content-test.js"></script>
+</body></html>

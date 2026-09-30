@@ -60,11 +60,18 @@
 .mt-tplbar-btn:hover { background: #f5f6f7; }
 .mt-tplbar-btn .mt-tickg { color: #16803c; font-weight: 800; letter-spacing: -1px; }
 
-/* „Šis laiškas jus seka" ženklas gautuose laiškuose */
+/* „Šis laiškas jus seka" ženklas gautuose laiškuose – trumpas čipas */
 .mt-tracked-by {
-  margin: 8px 0; padding: 6px 12px; border-radius: 8px;
+  margin: 6px 0; padding: 3px 9px; border-radius: 999px;
   background: #fde8e7; color: #b3261e; display: inline-block;
-  font: 500 12.5px/1.4 "Google Sans", Roboto, Arial, sans-serif;
+  font: 600 12px/1.4 "Google Sans", Roboto, Arial, sans-serif;
+  white-space: nowrap;
+}
+
+/* Raudonas taškas laiškų SĄRAŠE – siuntėjas jus seka (kaip Mailsuite) */
+.mt-list-trk {
+  display: inline-block; margin-right: 6px; font-size: 13px; line-height: 1;
+  color: #ea4335; vertical-align: middle; cursor: default;
 }
 .mt-menu {
   position: fixed;
