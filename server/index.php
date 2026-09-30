@@ -60,9 +60,12 @@ if (preg_match('#^c/([A-Za-z0-9_-]{8,32})/(\d{1,4})$#', $path, $m)) {
         $url = Tracker::recordClick($m[1], (int)$m[2], (string)($_GET['u'] ?? ''), (string)($_GET['s'] ?? ''));
     } catch (Throwable $e) {
         Logger::error('Paspaudimo įrašymo klaida: ' . $e->getMessage(), ['uid' => $m[1]]);
-        // DB sutriko – kad nuoroda gavėjui "nelūžtų", nukreipiam į užkoduotą URL
-        $u = b64url_decode((string)($_GET['u'] ?? ''));
-        $url = preg_match('#^https?://#i', $u) ? $u : null;
+        // SAUGUMAS: DB sutrikus NEnukreipiam į neverifikuotą ?u= (tai būtų atviras
+        // nukreipimas – phishingas per patikimą domeną). Parodom laikiną klaidą.
+        header('Cache-Control: no-store');
+        http_response_code(503);
+        header('Retry-After: 30');
+        exit('Nuoroda laikinai neprieinama. Bandykite dar kartą po kelių sekundžių.');
     }
     header('Cache-Control: no-store');
     if ($url) {

@@ -60,7 +60,15 @@ final class Logger
             str_replace(["\r", "\n"], ' ', $msg),
             $ctx ? ' ' . json_encode($ctx, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PARTIAL_OUTPUT_ON_ERROR) : ''
         );
-        @file_put_contents(self::$dir . '/app-' . gmdate('Y-m-d') . '.log', $line, FILE_APPEND | LOCK_EX);
+        // Apsauga nuo disko užpildymo (pvz. neautentifikuotas /api/log srautas):
+        // jei dienos žurnalas viršija ~25 MB, nustojam rašyti (klaidos vis tiek
+        // matomos, o diskas neužsipildo). Tikrinam retai – kas ~100 įrašų.
+        $file = self::$dir . '/app-' . gmdate('Y-m-d') . '.log';
+        static $writes = 0;
+        if ((++$writes % 100) === 1 && is_file($file) && filesize($file) > 25 * 1024 * 1024) {
+            return;
+        }
+        @file_put_contents($file, $line, FILE_APPEND | LOCK_EX);
     }
 
     /** PHP klaidų, išimčių ir fatal klaidų gaudymas. */

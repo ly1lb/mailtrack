@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 define('APP_ROOT', dirname(__DIR__));
-define('APP_VERSION', '1.0.2');
+define('APP_VERSION', '1.0.3');
 
 require __DIR__ . '/Logger.php';
 require __DIR__ . '/DB.php';
