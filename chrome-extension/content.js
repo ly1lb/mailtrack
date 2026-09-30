@@ -384,6 +384,14 @@
       msg.setAttribute('data-mt-scanned', '1');
       var html = msg.innerHTML || '';
       var m = html.match(re);
+      // Gmail proxy gali URL-koduoti mūsų pikselio nuorodą – tikrinam ir atkoduotus img src
+      if (!m) {
+        var imgs = msg.querySelectorAll('img');
+        for (var k = 0; k < imgs.length && !m; k++) {
+          var raw = imgs[k].getAttribute('src') || imgs[k].getAttribute('data-src') || '';
+          m = (deproxy(raw) || '').match(re);
+        }
+      }
       if (!m) return;
       var uid = m[1];
       // Tai MŪSŲ sekamas laiškas, kurį atidarė pats vartotojas -> selfview
@@ -457,51 +465,93 @@
     [/bit\.ly\/.*\.gif|beacon|open\.aspx/i, 'sekimo pikselis']
   ];
 
+  /* Gmail VISAS gautų laiškų paveikslėlių nuorodas persiunčia per savo tarpinį
+     serverį (googleusercontent.com Image Proxy). Tikroji sekiklio nuoroda lieka
+     po „#" (fragmente) arba URL-kode. Be jos atkodavimo sekiklio nepamatytume –
+     dėl to anksčiau nieko nerodė. Čia atkoduojam originalią nuorodą. */
+  function deproxy(src) {
+    if (!src) return src;
+    // 1) dažniausias variantas: originalas po '#'
+    var h = src.indexOf('#');
+    if (h !== -1) {
+      var after = src.slice(h + 1);
+      if (/^https?:\/\//i.test(after)) { try { return decodeURIComponent(after); } catch (e) { return after; } }
+      if (/^https?%3A/i.test(after)) { try { return decodeURIComponent(after); } catch (e) {} }
+    }
+    // 2) originalas įdėtas kaip URL-encoded parametras/path'as
+    var m = src.match(/https?%3A%2F%2F[^&#\s]+/i);
+    if (m) { try { return decodeURIComponent(m[0]); } catch (e) {} }
+    // 3) originalas po '/proxy/.../'  ar '/meips/.../' su tiesiogine http nuoroda
+    var m2 = src.match(/\/(?:proxy|meips|mail-sig)\/[^#]*?(https?:\/\/[^#\s]+)$/i);
+    if (m2) return m2[1];
+    return src;
+  }
+
+  function trackerFromSrc(rawsrc, img) {
+    var src = deproxy(rawsrc);
+    if (!src || src.indexOf('data:') === 0 || src.indexOf('cid:') === 0) return null;
+
+    // 1) Žinomi sekimo/rinkodaros paslaugų teikėjai (pagal domeną atkoduotame URL'e)
+    for (var i = 0; i < TRACKERS.length; i++) {
+      if (TRACKERS[i][0].test(src)) return TRACKERS[i][1];
+    }
+
+    var host;
+    try { host = new URL(src, location.href).hostname.toLowerCase(); } catch (e) { return null; }
+    // mūsų pačių serveris – praleidžiam
+    if (CFG && CFG.serverUrl) { try { if (new URL(CFG.serverUrl).hostname.toLowerCase() === host) return null; } catch (e) {} }
+    // Jei net po atkodavimo liko Google domenas – tai tikras Google turinys
+    // (emoji, nuotraukos), NE sekiklis; praleidžiam.
+    if (/(^|\.)(google|googleusercontent|gstatic|ggpht|youtube|ytimg|googleapis|gmail)\.com$/i.test(host)) return null;
+    if (/(^|\.)google\.[a-z.]+$/i.test(host)) return null;
+
+    var w = parseInt(img.getAttribute('width') || '0', 10);
+    var h = parseInt(img.getAttribute('height') || '0', 10);
+    var st = (img.getAttribute('style') || '').replace(/\s/g, '').toLowerCase();
+    var tiny = (w > 0 && w <= 3) || (h > 0 && h <= 3)
+      || img.naturalWidth === 1 || img.naturalHeight === 1
+      || (img.naturalWidth > 0 && img.naturalWidth <= 2 && img.naturalHeight > 0 && img.naturalHeight <= 2);
+    var hidden = /display:none|visibility:hidden|opacity:0|width:0|height:0|width:1px|height:1px/.test(st)
+      || (img.offsetParent === null && img.getBoundingClientRect().width <= 3);
+    var trackyUrl = /(open|pixel|beacon|track|trk|trackable|wf\/open|\/o\/|\/t\/|\/e\/|utm_|mkt_tok|email=|recipient=|mid=|sig=|eid=|subscriber|campaign|newsletter|\bimg\.php|spacer\.gif|clear\.gif|1x1|blank\.gif|\.gif(\?|#|$))/i.test(src);
+
+    if (tiny || hidden || trackyUrl) {
+      var parts = host.split('.');
+      return parts.length >= 2 ? parts.slice(-2).join('.') : host;
+    }
+    return null;
+  }
+
   function detectForeignTrackers() {
-    document.querySelectorAll('div.a3s:not([data-mt-tscan])').forEach(function (msg) {
-      msg.setAttribute('data-mt-tscan', '1');
+    document.querySelectorAll('div.a3s').forEach(function (msg) {
+      // Jei jau pažymėta – nebeskanuojam
+      if (msg.previousElementSibling && msg.previousElementSibling.classList.contains('mt-tracked-by')) return;
+      // Ribotas kartojimas: paveikslėliai kraunasi ne iškart (Gmail proxy),
+      // todėl bandom kelis ciklus, kol pikselis užsikrauna arba pasiduodam.
+      var tries = parseInt(msg.getAttribute('data-mt-tries') || '0', 10);
+      if (tries >= 12) return;
+      msg.setAttribute('data-mt-tries', String(tries + 1));
+
       var found = {};
+      var pending = false;
       msg.querySelectorAll('img').forEach(function (img) {
-        var src = img.getAttribute('src') || img.getAttribute('data-src') || img.getAttribute('data-surl') || '';
-        if (!src || src.indexOf('data:') === 0 || src.indexOf('cid:') === 0) return;
-
-        // 1) Žinomi sekimo/rinkodaros paslaugų teikėjai (pagal domeną URL'e)
-        for (var i = 0; i < TRACKERS.length; i++) {
-          if (TRACKERS[i][0].test(src)) { found[TRACKERS[i][1]] = 1; return; }
-        }
-
-        var host;
-        try { host = new URL(src, location.href).hostname.toLowerCase(); } catch (e) { return; }
-        // mūsų pačių ir Google turinio serveriai – praleidžiam
-        if (CFG && CFG.serverUrl && CFG.serverUrl.indexOf(host) !== -1) return;
-        if (/(^|\.)(google|googleusercontent|gstatic|ggpht|youtube|ytimg)\.com$/i.test(host)) return;
-        if (/(^|\.)(googleapis|gmail|google)\./i.test(host)) return;
-
-        // 2) Bendras euristinis aptikimas: mažas/nematomas paveikslėlis IŠ IŠORINIO
-        //    domeno beveik visada yra sekimo pikselis (kaip Mailsuite aptinka bet ką).
-        var w = parseInt(img.getAttribute('width') || '0', 10);
-        var h = parseInt(img.getAttribute('height') || '0', 10);
-        var st = (img.getAttribute('style') || '').replace(/\s/g, '').toLowerCase();
-        var tiny = (w > 0 && w <= 3) || (h > 0 && h <= 3)
-          || img.naturalWidth === 1 || img.naturalHeight === 1
-          || (img.naturalWidth > 0 && img.naturalWidth <= 2 && img.naturalHeight > 0 && img.naturalHeight <= 2);
-        var hidden = /display:none|visibility:hidden|opacity:0|width:0|height:0|width:1px|height:1px/.test(st)
-          || (img.offsetParent === null && img.getBoundingClientRect().width <= 3);
-        // URL požymiai, būdingi sekikliams
-        var trackyUrl = /(open|pixel|beacon|track|trk|trackable|wf\/open|\/o\/|\/t\/|\/e\/|utm_|mkt_tok|email=|recipient=|mid=|sig=|eid=|\bimg\.php|spacer\.gif|clear\.gif|1x1|blank\.gif|\.gif\?)/i.test(src);
-
-        if (tiny || hidden || trackyUrl) {
-          // vardas – registruotinas domenas (paskutinės 2 dalys), suprantamesnis žmogui
-          var parts = host.split('.');
-          var name = parts.length >= 2 ? parts.slice(-2).join('.') : host;
-          // jei tik URL požymiai, bet paveikslėlis didelis ir matomas – nelaikom (mažiau klaidų)
-          if (!tiny && !hidden && !trackyUrl) return;
-          found[name] = 1;
+        var raw = img.getAttribute('src') || img.getAttribute('data-src') || img.getAttribute('data-surl') || '';
+        if (!raw) return;
+        var name = trackerFromSrc(raw, img);
+        if (name) { found[name] = 1; return; }
+        // dar neužsikrovęs paveikslėlis – gali būti pikselis; perskenuosim jam užsikrovus
+        if ((!img.complete || img.naturalWidth === 0) && !img.__mtLoadHook) {
+          img.__mtLoadHook = 1;
+          pending = true;
+          img.addEventListener('load', function () { safe('detectForeignTrackers', detectForeignTrackers); }, { once: true });
+          img.addEventListener('error', function () { safe('detectForeignTrackers', detectForeignTrackers); }, { once: true });
         }
       });
       var names = Object.keys(found);
-      if (!names.length) return;
-      if (msg.previousElementSibling && msg.previousElementSibling.classList.contains('mt-tracked-by')) return;
+      if (!names.length) {
+        // jei liko nekrautų paveikslėlių – dar bandysim kitą ciklą (per observer/pollFab)
+        return;
+      }
       var b = document.createElement('div');
       b.className = 'mt-tracked-by';
       b.innerHTML = '<b>🔴 Šis laiškas jus seka</b> · siuntėjas mato, ar/kada atidarėte · '

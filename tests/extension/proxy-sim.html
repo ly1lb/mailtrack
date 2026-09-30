@@ -1,0 +1,33 @@
+<!doctype html><html><head><meta charset="utf-8"></head><body>
+<!-- Bolt-tipo laiškas: VISI paveikslėliai per Gmail proxy (googleusercontent) -->
+<div class="gs"><div class="a3s" id="bolt">
+  <p>Pasidalykite savo nuomone – Bolt Food</p>
+  <img src="https://ci3.googleusercontent.com/meips/ADKq_Nlogo123=s0-d-e1-ft#https://cdn.bolt.eu/logo.png" width="200">
+  <img src="https://ci4.googleusercontent.com/meips/ADKq_Nbanner=w600-h200#https://media.bolt.eu/banner.jpg" width="600" height="200">
+  <img src="https://ci5.googleusercontent.com/meips/ADKq_Npix=s0-d-e1-ft#https://email.bolt.eu/o/open?u=abc123&e=lukas" width="1" height="1">
+</div></div>
+
+<!-- Mailchimp per proxy -->
+<div class="gs"><div class="a3s" id="mc">
+  <img src="https://ci3.googleusercontent.com/proxy/hh=s0-d-e1-ft#https://track.mailchimp.com/track/open.php?u=xyz">
+</div></div>
+
+<!-- Grynas laiškas: tik Google emoji + tikras CDN baneris (NETURI buti pazymetas) -->
+<div class="gs"><div class="a3s" id="clean">
+  <p>Sveiki</p>
+  <img src="https://fonts.gstatic.com/s/e/notoemoji/smile.png" width="20">
+  <img src="https://ci3.googleusercontent.com/meips/AAAA=w600#https://cdn.geras-cdn.lt/nuotrauka.jpg" width="600" height="400">
+</div></div>
+
+<script>
+window.chrome = { runtime: { lastError:null, getManifest:function(){return{version:'1.0.0'}},
+  sendMessage:function(msg,cb){ setTimeout(function(){
+    if(msg.type==='config') cb({ok:true,cfg:{serverUrl:'https://track.lukasbartkus.lt',apiKey:'k'.repeat(30),linkSecret:'a',trackByDefault:true,trackLinks:true}});
+    else if(msg.type==='api'&&String(msg.path).indexOf('activity')===0) cb({ok:true,data:{ok:true,items:[],opens_today:0,tracked:0}});
+    else if(msg.type==='api'&&String(msg.path).indexOf('emails')===0) cb({ok:true,data:{ok:true,emails:[]}});
+    else cb({ok:true,data:{ok:true}});
+  },5);}, openOptionsPage:function(){}, onMessage:{addListener:function(){}} },
+  storage:{sync:{get:function(d,cb){cb(d)}},onChanged:{addListener:function(){}},local:{get:function(d,cb){cb(d)}}} };
+</script>
+<script src="sha256.js"></script><script src="content-test.js"></script>
+</body></html>
