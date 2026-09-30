@@ -26,7 +26,57 @@ chrome.storage.sync.get({ serverUrl: '', apiKey: '', userEmail: '', trackByDefau
     chrome.runtime.sendMessage({ type: 'setDefault', value: this.checked });
   });
   loadActivity();
+  loadTemplates();
 });
+
+/* Šablonai plėtinio lange – patikimiausias kelias, nes paspaudimas įvyksta
+   MŪSŲ lange (Gmail čia įvykių neperima), o įterpimas yra tik DOM operacija. */
+function loadTemplates() {
+  var list = $('tplList');
+  chrome.runtime.sendMessage({ type: 'api', method: 'GET', path: 'templates' }, function (r) {
+    if (chrome.runtime.lastError || !r || !r.ok) {
+      list.innerHTML = '<li class="empty">Nepavyko gauti šablonų.</li>';
+      return;
+    }
+    var items = (r.data && r.data.templates) || [];
+    if (!items.length) {
+      list.innerHTML = '<li class="empty">Šablonų nėra. Sukurkite skydelyje → Šablonai.</li>';
+      return;
+    }
+    list.innerHTML = '';
+    items.forEach(function (t) {
+      var li = document.createElement('li');
+      li.style.cursor = 'pointer';
+      var mid = document.createElement('div'); mid.style.flex = '1';
+      var nm = document.createElement('div'); nm.className = 't'; nm.textContent = t.name;
+      var sb = document.createElement('div'); sb.className = 'b'; sb.textContent = t.subject || '(be temos)';
+      mid.appendChild(nm); mid.appendChild(sb);
+      li.appendChild(mid);
+      li.addEventListener('click', function () { insertTemplate(t, li); });
+      list.appendChild(li);
+    });
+    $('tplHint').textContent = '– spauskite, kad įterptumėte';
+  });
+}
+
+function insertTemplate(t, li) {
+  chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
+    var tab = tabs && tabs[0];
+    if (!tab) return;
+    chrome.tabs.sendMessage(tab.id, { type: 'mt-insert-template', template: t }, function (res) {
+      if (chrome.runtime.lastError || !res || !res.ok) {
+        var why = (res && res.error) || 'atidarykite Gmail ir pradėkite rašyti laišką';
+        li.querySelector('.b').textContent = '⚠ ' + why;
+        li.querySelector('.b').style.color = '#b3261e';
+        return;
+      }
+      chrome.runtime.sendMessage({ type: 'api', method: 'POST', path: 'templates/' + t.id + '/use' });
+      li.querySelector('.b').textContent = '✓ Įterpta';
+      li.querySelector('.b').style.color = '#16803c';
+      setTimeout(function () { window.close(); }, 500);
+    });
+  });
+}
 
 function loadActivity() {
   chrome.runtime.sendMessage({ type: 'api', method: 'GET', path: 'activity?limit=20' }, function (r) {

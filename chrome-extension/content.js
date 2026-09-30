@@ -10,6 +10,7 @@
 
   var CFG = null;
   var ready = false;
+  var lastComposeState = null;   // paskutinis aptiktas rašymo langas
   var statusMap = {};        // uid -> {open_count, ...}
   var subjectIndex = {};     // "subject|recip" -> email (best-effort sąrašui)
   var lastStatusFetch = 0;
@@ -114,6 +115,7 @@
 
       var state = { on: ready && CFG.trackByDefault, dialog: dialog, body: body };
       sendBtn.__mtState = state;
+      lastComposeState = state; // kad šabloną būtų galima įterpti ir iš plėtinio lango
 
       var toggle = document.createElement('div');
       toggle.className = 'mt-toggle mt-track-toggle';
@@ -146,13 +148,13 @@
         e.preventDefault();
         openTemplateMenu(tplBtn, state);
       });
-      var bar = document.createElement('div');
-      bar.className = 'mt-tplbar';
-      bar.appendChild(tplBtn);
-      if (body.parentElement) {
+      // Mygtuką galima išjungti nustatymuose (jei dengiasi su kitu plėtiniu) –
+      // šablonus visada galima įterpti per plėtinio ikoną (popup).
+      if (CFG.showTplButton !== false && body.parentElement) {
+        var bar = document.createElement('div');
+        bar.className = 'mt-tplbar';
+        bar.appendChild(tplBtn);
         body.parentElement.insertBefore(bar, body);
-      } else if (toggle.parentElement) {
-        toggle.parentElement.insertBefore(tplBtn, toggle.nextSibling);
       }
 
       // Siuntimo mygtuką pažymim – paspaudimą pagauna globalus capture klausytojas
@@ -615,6 +617,33 @@
   }
   // Registruojam IŠ KARTO (document_start), kad Gmail neužsiregistruotų anksčiau.
   installClickCapture();
+
+  /* Šablono įterpimas IŠ PLĖTINIO LANGO (popup).
+     Tai patikimiausias kelias: paspaudimas įvyksta mūsų pačių lange, kur Gmail
+     įvykių neperima, o čia atliekama tik DOM operacija. */
+  function currentComposeState() {
+    if (lastComposeState && document.contains(lastComposeState.body)) return lastComposeState;
+    var el = document.querySelector('div[aria-label][contenteditable="true"], div[g_editable="true"][contenteditable="true"]');
+    if (!el) return null;
+    var dlg = el.closest('div[role="dialog"]') || el.closest('div.M9, div.aoI, div.nH') || el.parentElement;
+    return { on: true, dialog: dlg, body: el };
+  }
+  try {
+    chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
+      if (!msg) return;
+      if (msg.type === 'mt-insert-template') {
+        var st = currentComposeState();
+        if (!st) { sendResponse({ ok: false, error: 'Neatidarytas laiško rašymo langas' }); return true; }
+        insertTemplate(st, msg.template);
+        sendResponse({ ok: true });
+        return true;
+      }
+      if (msg.type === 'mt-has-compose') {
+        sendResponse({ ok: true, has: !!currentComposeState() });
+        return true;
+      }
+    });
+  } catch (e) { /* plėtinys perkraunamas */ }
 
   function boot() {
     loadCfg(function () {

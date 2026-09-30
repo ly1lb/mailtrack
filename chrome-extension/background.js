@@ -5,7 +5,7 @@
    - Blokuoja jūsų pačių pikselio užkrovimą Gmail'e (kad nesiskaičiuotų jūsų atidarymai) */
 'use strict';
 
-const DEFAULTS = { serverUrl: '', apiKey: '', linkSecret: '', userEmail: '', trackByDefault: true, trackLinks: true, desktopNotify: true };
+const DEFAULTS = { serverUrl: '', apiKey: '', linkSecret: '', userEmail: '', trackByDefault: true, trackLinks: true, desktopNotify: true, showTplButton: true };
 
 async function getCfg() {
   const c = await chrome.storage.sync.get(DEFAULTS);
