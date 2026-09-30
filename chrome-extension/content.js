@@ -470,31 +470,50 @@
       });
       var names = Object.keys(found);
       if (!names.length) return;
-      var host = msg.closest('.gs, .adn, .h7') || msg.parentElement || msg;
-      if (host.querySelector(':scope > .mt-tracked-by')) return;
+      if (msg.previousElementSibling && msg.previousElementSibling.classList.contains('mt-tracked-by')) return;
       var b = document.createElement('div');
       b.className = 'mt-tracked-by';
       b.textContent = '🔴 Šis laiškas jus seka · ' + names.join(', ');
       b.title = 'Siuntėjas mato, ar ir kada atidarėte šį laišką. Kad nesektų – neleiskite užkrauti paveikslėlių.';
-      host.insertBefore(b, msg);
+      insertBefore(b, msg);
     });
   }
 
+  /* SVARBU: įterpiam tik į TIKRĄ tėvinį elementą.
+     Anksčiau čia buvo host = msg.closest('.gs, .adn, .h7'), o toks protėvis
+     būna keliais lygiais aukščiau – tada insertBefore(b, msg) meta
+     NotFoundError ir nutraukia visą ciklą (nebeveikia sąrašo ženklai,
+     mini dashboardas ir kt.). */
+  function insertBefore(node, ref) {
+    var parent = ref && ref.parentElement;
+    if (!parent) return false;
+    try {
+      parent.insertBefore(node, ref);
+      return true;
+    } catch (e) {
+      log('insertBefore nepavyko: ' + (e && e.message));
+      return false;
+    }
+  }
+
   function injectOpenBanner(msgEl, d) {
-    var host = msgEl.closest('.gs, .adn, .h7') || msgEl.parentElement;
-    if (!host) host = msgEl;
-    var old = host.querySelector(':scope > .mt-banner');
     var opened = d.open_count > 0;
     var txt = opened
       ? '✓✓ MailTrack: atidaryta ' + d.open_count + ' k.' + (d.last_open_at ? ' · paskutinis ' + fmtShort(d.last_open_at) : '')
       : '✓ MailTrack: išsiųsta, dar neatidaryta';
-    if (old) { old.className = 'mt-banner ' + (opened ? 'on' : ''); old.textContent = txt; old.title = 'Atidaryti skydelį'; return; }
+    var prev = msgEl.previousElementSibling;
+    if (prev && prev.classList.contains('mt-banner')) {
+      prev.className = 'mt-banner ' + (opened ? 'on' : '');
+      prev.textContent = txt;
+      prev.title = 'Atidaryti skydelį';
+      return;
+    }
     var b = document.createElement('div');
     b.className = 'mt-banner ' + (opened ? 'on' : '');
     b.textContent = txt;
     b.title = 'Atidaryti skydelį';
     b.addEventListener('click', function () { window.open(d.dashboard_url, '_blank'); });
-    host.insertBefore(b, msgEl);
+    insertBefore(b, msgEl);
   }
   function fmtShort(iso) {
     try { var dt = new Date(iso); return dt.toLocaleString(); } catch (e) { return iso; }
@@ -557,15 +576,32 @@
   }
 
   // ================= STEBĖJIMAS =================
+  /* Kiekvieną dalį vykdom atskirai. Anksčiau viena klaida (pvz. insertBefore su
+     netinkamu tėvu) nutraukdavo VISĄ ciklą – tada nebeveikdavo nei sąrašo ženklai,
+     nei mini dashboardas. Dabar sugedusi dalis nebetrukdo kitoms. */
+  function safe(name, fn) {
+    try {
+      fn();
+    } catch (e) {
+      if (!safe.warned) safe.warned = {};
+      if (!safe.warned[name]) {
+        safe.warned[name] = 1; // pranešam tik kartą, kad neužpiltume žurnalo
+        log('Klaida (' + name + '): ' + (e && e.message), { stack: String(e && e.stack).slice(0, 300) });
+      }
+    }
+  }
+
+  function runCycle() {
+    safe('decorateComposes', decorateComposes);
+    safe('scanOpenedMessages', scanOpenedMessages);
+    safe('decorateList', decorateList);
+    if (ready) safe('ensureFab', ensureFab);
+  }
+
   var tick = 0;
   var observer = new MutationObserver(function () {
     clearTimeout(tick);
-    tick = setTimeout(function () {
-      decorateComposes();
-      scanOpenedMessages();
-      decorateList();
-      if (ready) ensureFab();
-    }, 250);
+    tick = setTimeout(runCycle, 250);
   });
 
   /* Gmail savo įrankių juostoje perima paspaudimus (stopPropagation capture fazėje),
@@ -647,14 +683,18 @@
 
   function boot() {
     loadCfg(function () {
-      observer.observe(document.body, { childList: true, subtree: true });
-      decorateComposes();
-      scanOpenedMessages();
-      decorateList();
-      if (ready) { ensureFab(); pollFab(); }
-      setInterval(pollFab, 20000);
-      window.addEventListener('hashchange', function () { setTimeout(decorateList, 400); });
-      chrome.storage.onChanged.addListener(function (c, area) { if (area === 'sync') loadCfg(function () { if (ready) ensureFab(); }); });
+      safe('observe', function () { observer.observe(document.body, { childList: true, subtree: true }); });
+      runCycle();
+      if (ready) safe('pollFab', pollFab);
+      setInterval(function () { safe('pollFab', pollFab); }, 20000);
+      window.addEventListener('hashchange', function () {
+        setTimeout(function () { safe('decorateList', decorateList); }, 400);
+      });
+      safe('storageListener', function () {
+        chrome.storage.onChanged.addListener(function (c, area) {
+          if (area === 'sync') loadCfg(function () { if (ready) safe('ensureFab', ensureFab); });
+        });
+      });
     });
   }
   if (document.body) boot();
