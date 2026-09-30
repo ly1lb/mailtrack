@@ -133,30 +133,6 @@
       toggle.__mtState = state;
       if (sendBtn.parentElement) sendBtn.parentElement.insertBefore(toggle, sendBtn.nextSibling);
 
-      // Šablonų mygtukas – dedam VIRŠ laiško teksto (kaip Mailsuite „Load template“),
-      // o ne į apatinę Gmail juostą: ten Gmail perima įvykius ir mygtukas „negyvas“.
-      var tplBtn = document.createElement('div');
-      tplBtn.className = 'mt-tplbar-btn mt-tpl';
-      tplBtn.setAttribute('role', 'button');
-      tplBtn.tabIndex = 0;
-      tplBtn.innerHTML = '<span class="mt-tickg">✓✓</span><span class="mt-lbl">Įkelti šabloną</span>';
-      tplBtn.title = 'Įterpti laiško šabloną';
-      tplBtn.__mtState = state;
-      // Už Gmail juostos ribų įprastas listener'is veikia – kabinam ir jį (atsarga)
-      tplBtn.addEventListener('click', function (e) {
-        e.stopPropagation();
-        e.preventDefault();
-        openTemplateMenu(tplBtn, state);
-      });
-      // Mygtuką galima išjungti nustatymuose (jei dengiasi su kitu plėtiniu) –
-      // šablonus visada galima įterpti per plėtinio ikoną (popup).
-      if (CFG.showTplButton !== false && body.parentElement) {
-        var bar = document.createElement('div');
-        bar.className = 'mt-tplbar';
-        bar.appendChild(tplBtn);
-        body.parentElement.insertBefore(bar, body);
-      }
-
       // Siuntimo mygtuką pažymim – paspaudimą pagauna globalus capture klausytojas
       // (žr. installClickCapture). Tiesioginis listener'is čia nepatikimas: Gmail
       // aukščiau esančiame konteineryje kviečia stopImmediatePropagation() ir jis
@@ -428,9 +404,9 @@
   var TRACKERS = [
     [/mailtrack\.io|mailtrack\.me/i, 'Mailtrack'],
     [/mailsuite\.com|\bmlsnd\b/i, 'Mailsuite'],
-    [/t\.yesware\.com|yesware\.com/i, 'Yesware'],
+    [/yesware\.com/i, 'Yesware'],
     [/streak\.com|mailfoogae/i, 'Streak'],
-    [/track\.hubspot\.com|hubspotemail/i, 'HubSpot'],
+    [/hubspot\.com|hubspotemail|hs-sites|hubspotlinks/i, 'HubSpot'],
     [/mixmax\.com/i, 'Mixmax'],
     [/bananatag\.com/i, 'Bananatag'],
     [/saleshandy\.com/i, 'Saleshandy'],
@@ -441,8 +417,44 @@
     [/getnotify\.com|didtheyreadit/i, 'GetNotify'],
     [/outreach\.io/i, 'Outreach'],
     [/apollo\.io/i, 'Apollo'],
-    [/sendgrid\.net\/wf\/open|sendgrid\.net\/ls\/open/i, 'SendGrid'],
-    [/mailchimp\.com\/track|list-manage\.com\/track/i, 'Mailchimp']
+    [/sendgrid\.net|sendgrid\.com/i, 'SendGrid'],
+    [/mailchimp\.com|list-manage\.com|mcusercontent/i, 'Mailchimp'],
+    [/sparkpostmail|sparkpost\.com/i, 'SparkPost'],
+    [/mailgun\.org|mailgun\.net|mailgun\.com|mailgunapp/i, 'Mailgun'],
+    [/sendinblue\.com|sibautomation|brevo\.com/i, 'Brevo/Sendinblue'],
+    [/customer\.io|customeriomail|track\.customer/i, 'Customer.io'],
+    [/klaviyo\.com|kmail-lists/i, 'Klaviyo'],
+    [/hubs\.ly/i, 'HubSpot'],
+    [/mandrillapp\.com/i, 'Mandrill'],
+    [/postmarkapp\.com|pstmrk\.it/i, 'Postmark'],
+    [/mailerlite\.com|ml\.mailerlite/i, 'MailerLite'],
+    [/constantcontact\.com|rs6\.net|ctctcdn/i, 'Constant Contact'],
+    [/activehosted\.com|activecampaign/i, 'ActiveCampaign'],
+    [/getresponse\.com|grsm\.io/i, 'GetResponse'],
+    [/aweber\.com|awtrack/i, 'AWeber'],
+    [/convertkit|ck\.page|kit\.com/i, 'ConvertKit'],
+    [/marketo\.com|mktoresp|mkto\b/i, 'Marketo'],
+    [/pardot\.com|pi\.pardot/i, 'Pardot'],
+    [/salesforce\.com\/.*\/email|exct\.net|exacttarget/i, 'Salesforce'],
+    [/intercom|intercomcdn|intercomassets/i, 'Intercom'],
+    [/amazonses|amazonaws\.com\/.*open/i, 'Amazon SES'],
+    [/sendpulse\.com/i, 'SendPulse'],
+    [/moosend\.com/i, 'Moosend'],
+    [/omnisend\.com/i, 'Omnisend'],
+    [/drip\.com|getdrip/i, 'Drip'],
+    [/woodpecker\.co/i, 'Woodpecker'],
+    [/lemlist\.com|lemwarm/i, 'Lemlist'],
+    [/reply\.io/i, 'Reply.io'],
+    [/close\.com|close\.io/i, 'Close CRM'],
+    [/pipedrive|pipedrivemail/i, 'Pipedrive'],
+    [/zoho\.com\/.*open|zohomail|zcsend/i, 'Zoho'],
+    [/mailjet\.com|mjt\.lu/i, 'Mailjet'],
+    [/elasticemail/i, 'Elastic Email'],
+    [/benchmarkemail/i, 'Benchmark'],
+    [/campaign-archive|cmail\d|createsend\.com/i, 'Campaign Monitor'],
+    [/tinyletter/i, 'TinyLetter'],
+    [/substack\.com\/.*open|substackcdn/i, 'Substack'],
+    [/bit\.ly\/.*\.gif|beacon|open\.aspx/i, 'sekimo pikselis']
   ];
 
   function detectForeignTrackers() {
@@ -450,22 +462,41 @@
       msg.setAttribute('data-mt-tscan', '1');
       var found = {};
       msg.querySelectorAll('img').forEach(function (img) {
-        var src = img.getAttribute('src') || img.getAttribute('data-src') || '';
-        if (!src) return;
-        // tik maži/nematomi paveikslėliai laikomi sekikliais
-        var w = parseInt(img.getAttribute('width') || '0', 10);
-        var h = parseInt(img.getAttribute('height') || '0', 10);
-        var tiny = (w > 0 && w <= 3) || (h > 0 && h <= 3) || img.naturalWidth === 1 || img.naturalHeight === 1;
+        var src = img.getAttribute('src') || img.getAttribute('data-src') || img.getAttribute('data-surl') || '';
+        if (!src || src.indexOf('data:') === 0 || src.indexOf('cid:') === 0) return;
+
+        // 1) Žinomi sekimo/rinkodaros paslaugų teikėjai (pagal domeną URL'e)
         for (var i = 0; i < TRACKERS.length; i++) {
           if (TRACKERS[i][0].test(src)) { found[TRACKERS[i][1]] = 1; return; }
         }
-        if (tiny && /\/(open|o|pixel|track|t)\b|\.gif(\?|$)/i.test(src)) {
-          try {
-            var host = new URL(src, location.href).hostname;
-            if (CFG && CFG.serverUrl && CFG.serverUrl.indexOf(host) !== -1) return; // mūsų pačių
-            if (/googleusercontent|gstatic|google\.com/i.test(host)) return;
-            found['nežinomas sekiklis (' + host + ')'] = 1;
-          } catch (e) {}
+
+        var host;
+        try { host = new URL(src, location.href).hostname.toLowerCase(); } catch (e) { return; }
+        // mūsų pačių ir Google turinio serveriai – praleidžiam
+        if (CFG && CFG.serverUrl && CFG.serverUrl.indexOf(host) !== -1) return;
+        if (/(^|\.)(google|googleusercontent|gstatic|ggpht|youtube|ytimg)\.com$/i.test(host)) return;
+        if (/(^|\.)(googleapis|gmail|google)\./i.test(host)) return;
+
+        // 2) Bendras euristinis aptikimas: mažas/nematomas paveikslėlis IŠ IŠORINIO
+        //    domeno beveik visada yra sekimo pikselis (kaip Mailsuite aptinka bet ką).
+        var w = parseInt(img.getAttribute('width') || '0', 10);
+        var h = parseInt(img.getAttribute('height') || '0', 10);
+        var st = (img.getAttribute('style') || '').replace(/\s/g, '').toLowerCase();
+        var tiny = (w > 0 && w <= 3) || (h > 0 && h <= 3)
+          || img.naturalWidth === 1 || img.naturalHeight === 1
+          || (img.naturalWidth > 0 && img.naturalWidth <= 2 && img.naturalHeight > 0 && img.naturalHeight <= 2);
+        var hidden = /display:none|visibility:hidden|opacity:0|width:0|height:0|width:1px|height:1px/.test(st)
+          || (img.offsetParent === null && img.getBoundingClientRect().width <= 3);
+        // URL požymiai, būdingi sekikliams
+        var trackyUrl = /(open|pixel|beacon|track|trk|trackable|wf\/open|\/o\/|\/t\/|\/e\/|utm_|mkt_tok|email=|recipient=|mid=|sig=|eid=|\bimg\.php|spacer\.gif|clear\.gif|1x1|blank\.gif|\.gif\?)/i.test(src);
+
+        if (tiny || hidden || trackyUrl) {
+          // vardas – registruotinas domenas (paskutinės 2 dalys), suprantamesnis žmogui
+          var parts = host.split('.');
+          var name = parts.length >= 2 ? parts.slice(-2).join('.') : host;
+          // jei tik URL požymiai, bet paveikslėlis didelis ir matomas – nelaikom (mažiau klaidų)
+          if (!tiny && !hidden && !trackyUrl) return;
+          found[name] = 1;
         }
       });
       var names = Object.keys(found);
@@ -473,8 +504,12 @@
       if (msg.previousElementSibling && msg.previousElementSibling.classList.contains('mt-tracked-by')) return;
       var b = document.createElement('div');
       b.className = 'mt-tracked-by';
-      b.textContent = '🔴 Šis laiškas jus seka · ' + names.join(', ');
-      b.title = 'Siuntėjas mato, ar ir kada atidarėte šį laišką. Kad nesektų – neleiskite užkrauti paveikslėlių.';
+      b.innerHTML = '<b>🔴 Šis laiškas jus seka</b> · siuntėjas mato, ar/kada atidarėte · '
+        + names.map(function (n) { return '<span class="mt-trk-name"></span>'; }).join(' ');
+      // saugiai įrašom pavadinimus (be HTML injekcijos)
+      var spans = b.querySelectorAll('.mt-trk-name');
+      names.forEach(function (n, i) { if (spans[i]) spans[i].textContent = n; });
+      b.title = 'Aptiktas sekimo pikselis (' + names.join(', ') + '). Kad nesektų – Gmail nustatymuose išjunkite automatinį paveikslėlių rodymą.';
       insertBefore(b, msg);
     });
   }

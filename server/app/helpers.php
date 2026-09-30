@@ -267,3 +267,36 @@ function strip_lead_emoji(string $t): string
 {
     return trim(preg_replace('/^(?:[\x{1F300}-\x{1FAFF}\x{2190}-\x{27BF}\x{2B00}-\x{2BFF}\x{FE0F}\x{2705}\x{2713}\x{2714}]+\s*)+/u', '', $t));
 }
+
+/** El. pašto adresą paverčia gražiu vardu: "lukas.navakas@x" -> "Lukas Navakas". */
+function pretty_name(string $email): string
+{
+    $local = trim(explode('@', $email)[0]);
+    if ($local === '') return $email ?: '—';
+    $local = str_replace(['.', '_', '-', '+'], ' ', $local);
+    $local = preg_replace('/\s+/', ' ', trim($local));
+    $parts = array_map(fn($w) => function_exists('mb_convert_case') ? mb_convert_case($w, MB_CASE_TITLE, 'UTF-8') : ucfirst($w), explode(' ', $local));
+    return implode(' ', $parts);
+}
+
+/** Pirmoji raidė avatarui. */
+function avatar_initial(string $s): string
+{
+    $s = trim($s);
+    if ($s === '') return '?';
+    $ch = mb_substr($s, 0, 1, 'UTF-8');
+    return mb_strtoupper($ch, 'UTF-8');
+}
+
+/** Stabili spalva pagal tekstą (0-7 – kategorinė paletė). */
+function avatar_hue(string $s): int
+{
+    return crc32(mb_strtolower(trim($s), 'UTF-8')) % 8;
+}
+
+/** Grąžina temą po pirmo ": " (pranešimo antraštėje). */
+function subject_after(string $title): string
+{
+    $pos = mb_strpos($title, ': ');
+    return $pos === false ? strip_lead_emoji($title) : trim(mb_substr($title, $pos + 2));
+}

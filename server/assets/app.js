@@ -100,11 +100,15 @@
           if (feed) {
             var icons = { open: '👁', click: '🔗', doc: '📄', reminder: '⏰' };
             var li = document.createElement('li');
-            li.innerHTML = '<div class="ic"></div><div class="mid"><a class="t"></a><div class="b"></div><div class="w">ką tik</div></div>';
-            li.querySelector('.ic').textContent = icons[n.type] || '✉️';
+            li.innerHTML = '<span class="avatar h0">•</span><div class="mid"><a class="line"><b class="who"></b> <span class="subj"></span></a><div class="meta"><span class="ic-type"></span><span class="w">ką tik</span></div></div>';
+            li.querySelector('.ic-type').textContent = icons[n.type] || '✉️';
             var a = li.querySelector('a');
-            a.textContent = stripLeadEmoji(n.title); a.href = n.url;
-            li.querySelector('.b').textContent = (n.body || '').split('\n')[0];
+            a.href = n.url;
+            a.querySelector('.who').textContent = stripLeadEmoji(n.title);
+            a.querySelector('.subj').textContent = '';
+            var b1 = (n.body || '').split('\n')[0];
+            if (b1) { var w = document.createElement('span'); w.className = 'where'; w.textContent = b1; li.querySelector('.meta').appendChild(w); }
+            var em = feed.querySelector('.feed-empty'); if (em) em.remove();
             feed.insertBefore(li, feed.firstChild);
             while (feed.children.length > 12) feed.removeChild(feed.lastChild);
           }

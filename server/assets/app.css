@@ -261,3 +261,67 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
   .toplinks td.num { text-align: left; color: var(--text-2); font-size: 13px; }
   .toplinks td.num::before { content: "Paspaudimų: "; color: var(--muted); }
 }
+
+/* ============ SKYDELIS (Mailsuite stiliaus) ============ */
+.dash-main { display: grid; grid-template-columns: minmax(300px, 380px) 1fr; gap: 16px; margin: 16px 0; align-items: start; }
+.dash-main .card { margin: 0; }
+.muted-note { color: var(--muted); font-weight: 400; font-size: 13px; }
+
+/* --- Žiedinės diagramos (gauge) --- */
+.donuts { display: flex; gap: 8px; justify-content: space-around; flex-wrap: wrap; margin: 6px 0 4px; }
+.donut { text-align: center; flex: 1; min-width: 130px; }
+.donut svg { width: 128px; height: 128px; max-width: 100%; }
+.donut-track { fill: none; stroke: var(--surface-2); stroke-width: 12; }
+.donut-val { fill: none; stroke-width: 12; stroke-linecap: round; transform: rotate(-90deg); transform-origin: 64px 64px; transition: stroke-dashoffset .6s ease; }
+.donut-num { fill: var(--text); font: 800 26px/1 system-ui, sans-serif; text-anchor: middle; letter-spacing: -.02em; }
+.donut-cap { fill: var(--muted); font: 500 11px/1 system-ui, sans-serif; text-anchor: middle; }
+.donut-label { color: var(--text-2); font-size: 13px; font-weight: 600; margin-top: 4px; }
+.perf-links { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+
+/* --- Veiklos srautas su avatarais --- */
+.activity .feed li { align-items: flex-start; gap: 12px; }
+.activity .feed li.feed-empty { color: var(--muted); }
+.avatar {
+  flex: none; width: 38px; height: 38px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 15px; user-select: none;
+}
+.feed .line { display: block; color: var(--text); line-height: 1.4; }
+.feed .line:hover { text-decoration: none; }
+.feed .line .who { font-weight: 700; }
+.feed .line .verb { color: var(--text-2); }
+.feed .line .subj { color: var(--text); font-weight: 600; }
+.feed .meta { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; margin-top: 3px; color: var(--muted); font-size: 12px; }
+.feed .meta .ic-type { font-size: 13px; }
+.feed .meta .where { color: var(--muted); }
+.badge.times { background: var(--good-bg); color: var(--good); }
+.badge.old { background: var(--warn-bg); color: var(--warn); }
+.badge.live { background: var(--good-bg); color: var(--good); }
+
+/* Avatarų paletė – validuota kategorinė paletė (švelnus fonas + sodrus tekstas) */
+.avatar.h0 { background: #e7f0fb; color: #1a5fb4; } /* mėlyna */
+.avatar.h1 { background: #fdeae0; color: #b64a1e; } /* oranžinė */
+.avatar.h2 { background: #e2f5ee; color: #12795a; } /* žalsvai mėlyna */
+.avatar.h3 { background: #fbf0d6; color: #8a5e00; } /* geltona */
+.avatar.h4 { background: #fceaf1; color: #b23a6a; } /* rožinė */
+.avatar.h5 { background: #e2f0e2; color: #0a6b0a; } /* žalia */
+.avatar.h6 { background: #eceafa; color: #3a2e86; } /* violetinė */
+.avatar.h7 { background: #fdeae9; color: #b32a29; } /* raudona */
+
+.chart-card { margin: 0 0 16px; }
+.chart-card .chart { height: 170px; }
+.chart .axis.val { fill: var(--text-2); font-weight: 700; font-size: 11px; }
+.section-head { display: flex; align-items: center; justify-content: space-between; }
+
+:root:not([data-theme="light"]) .avatar.h0,:root[data-theme="dark"] .avatar.h0 { background: #16304d; color: #8fbdf0; }
+:root:not([data-theme="light"]) .avatar.h1,:root[data-theme="dark"] .avatar.h1 { background: #3a2214; color: #f0a97e; }
+:root:not([data-theme="light"]) .avatar.h2,:root[data-theme="dark"] .avatar.h2 { background: #13322a; color: #6fd3b0; }
+:root:not([data-theme="light"]) .avatar.h3,:root[data-theme="dark"] .avatar.h3 { background: #352a10; color: #e5be5c; }
+:root:not([data-theme="light"]) .avatar.h4,:root[data-theme="dark"] .avatar.h4 { background: #3a2029; color: #ed92b6; }
+:root:not([data-theme="light"]) .avatar.h5,:root[data-theme="dark"] .avatar.h5 { background: #14301a; color: #6fc57f; }
+:root:not([data-theme="light"]) .avatar.h6,:root[data-theme="dark"] .avatar.h6 { background: #221d3d; color: #a99cf0; }
+:root:not([data-theme="light"]) .avatar.h7,:root[data-theme="dark"] .avatar.h7 { background: #3a1d1c; color: #f0918b; }
+
+@media (max-width: 860px) {
+  .dash-main { grid-template-columns: 1fr; }
+}

@@ -76,7 +76,7 @@ if ($path === '') {
         $k = (new DateTime($r['opened_at'], new DateTimeZone('UTC')))->setTimezone($tz)->format('Y-m-d');
         if (isset($daily[$k])) $daily[$k]++;
     }
-    $recent = DB::all('SELECT * FROM notifications WHERE user_id = ? ORDER BY id DESC LIMIT 8', [$uid]);
+    $recent = DB::all('SELECT n.*, e.recipients AS e_recipients, e.open_count AS e_open_count, e.uid AS e_uid FROM notifications n LEFT JOIN emails e ON e.id = n.email_id WHERE n.user_id = ? ORDER BY n.id DESC LIMIT 10', [$uid]);
     render('dashboard', compact('emails', 'stats', 'opensToday', 'filter', 'q', 'page', 'per', 'total', 'daily', 'recent'));
     exit;
 }

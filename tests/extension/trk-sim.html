@@ -1,0 +1,24 @@
+<!doctype html><html><head><meta charset="utf-8"></head><body>
+<!-- Keli GAUTI laiškai su skirtingais sekikliais -->
+<div class="gs"><div class="a3s" id="m1"><p>eWeLink laiškas</p>
+  <img src="https://email.ewelink.cc/o/eJxNz.gif" width="1" height="1"></div></div>
+<div class="gs"><div class="a3s" id="m2"><p>Mailchimp</p>
+  <img src="https://track.mailchimp.com/track/open.php?u=abc"></div></div>
+<div class="gs"><div class="a3s" id="m3"><p>Random SaaS pixel</p>
+  <img src="https://analytics.somesaas.io/e/open?mid=123&email=x" style="display:none"></div></div>
+<div class="gs"><div class="a3s" id="m4"><p>Legit newsletter image (turi NEbuti pazymeta)</p>
+  <img src="https://cdn.example.com/hero-banner.jpg" width="600" height="200"></div></div>
+<div class="gs"><div class="a3s" id="m5"><p>Google embedded (praleisti)</p>
+  <img src="https://lh3.googleusercontent.com/abc" width="1" height="1"></div></div>
+<script>
+window.chrome = { runtime: { lastError:null, getManifest:function(){return{version:'1.0.0'}},
+  sendMessage:function(msg,cb){ setTimeout(function(){
+    if(msg.type==='config') cb({ok:true,cfg:{serverUrl:'https://track.test',apiKey:'k'.repeat(30),linkSecret:'a',trackByDefault:true,trackLinks:true}});
+    else if(msg.type==='api'&&String(msg.path).indexOf('activity')===0) cb({ok:true,data:{ok:true,items:[],opens_today:0,tracked:0}});
+    else if(msg.type==='api'&&String(msg.path).indexOf('emails')===0) cb({ok:true,data:{ok:true,emails:[]}});
+    else cb({ok:true,data:{ok:true}});
+  },5);}, openOptionsPage:function(){}, onMessage:{addListener:function(){}} },
+  storage:{sync:{get:function(d,cb){cb(d)}},onChanged:{addListener:function(){}},local:{get:function(d,cb){cb(d)}}} };
+</script>
+<script src="sha256.js"></script><script src="content-test.js"></script>
+</body></html>
