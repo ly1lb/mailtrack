@@ -55,16 +55,16 @@ $opened = (int)$email['open_count'] > 0;
 <p class="help">Perbraukti įrašai neįskaičiuoti (jūsų pačių peržiūros, botai, dublikatai). Paspauskite „Įskaičiuoti/Ignoruoti“, jei norite pataisyti rankiniu būdu.
 Gmail gavėjų atidarymai eina per Google Image Proxy – todėl tikslios vietos ir įrenginio Gmail neatskleidžia (taip pat ir Mailtrack).</p>
 <div class="tbl-wrap">
-<table>
+<table class="cards">
   <thead><tr><th>Laikas</th><th>Klientas</th><th class="hide-sm">Įrenginys</th><th>Vieta</th><th class="hide-sm">IP</th><th></th></tr></thead>
   <tbody>
-  <?php if (!$opens): ?><tr><td colspan="6" style="color:var(--muted)">Dar neatidarytas.</td></tr><?php endif; ?>
+  <?php if (!$opens): ?><tr><td colspan="6" class="empty-state">Dar neatidarytas.</td></tr><?php endif; ?>
   <?php foreach ($opens as $o): ?>
     <tr class="<?= $o['ignored'] ? 'ignored' : '' ?>" title="<?= e($o['user_agent']) ?>">
-      <td><?= e(fmt_dt($o['opened_at'], 'Y-m-d H:i:s')) ?></td>
-      <td><?= e($o['client']) ?><?php if ($o['proxy']): ?><div class="recip"><?= e($o['proxy']) ?></div><?php endif; ?></td>
+      <td data-l="Laikas"><?= e(fmt_dt($o['opened_at'], 'Y-m-d H:i:s')) ?></td>
+      <td data-l="Klientas"><?= e($o['client']) ?><?php if ($o['proxy']): ?><div class="recip"><?= e($o['proxy']) ?></div><?php endif; ?></td>
       <td class="hide-sm"><?= e(trim($o['device'] . ' ' . $o['os'])) ?></td>
-      <td><?= e(trim($o['city'] . ($o['city'] && $o['country'] ? ', ' : '') . $o['country']) ?: '—') ?></td>
+      <td data-l="Vieta"><?= e(trim($o['city'] . ($o['city'] && $o['country'] ? ', ' : '') . $o['country']) ?: '—') ?></td>
       <td class="hide-sm mono"><?= e($o['ip']) ?></td>
       <td>
         <?php if ($o['ignored']): ?><span class="badge"><?= e($o['ignore_reason']) ?></span>
@@ -82,7 +82,7 @@ Gmail gavėjų atidarymai eina per Google Image Proxy – todėl tikslios vietos
 <table>
   <thead><tr><th>#</th><th>URL</th><th class="num">Paspaudimai</th></tr></thead>
   <tbody>
-  <?php if (!$links): ?><tr><td colspan="3" style="color:var(--muted)">Sekamų nuorodų nėra.</td></tr><?php endif; ?>
+  <?php if (!$links): ?><tr><td colspan="3" class="empty-state">Sekamų nuorodų nėra.</td></tr><?php endif; ?>
   <?php foreach ($links as $l): ?>
     <tr><td><?= (int)$l['idx'] + 1 ?></td><td style="word-break:break-all"><a href="<?= e($l['url']) ?>" target="_blank" rel="noopener noreferrer"><?= e($l['url']) ?></a></td><td class="num"><?= (int)$l['click_count'] ?></td></tr>
   <?php endforeach; ?>
@@ -93,7 +93,7 @@ Gmail gavėjų atidarymai eina per Google Image Proxy – todėl tikslios vietos
 <?php if ($clicks): ?>
 <h2>Paspaudimų istorija</h2>
 <div class="tbl-wrap">
-<table>
+<table class="cards">
   <thead><tr><th>Laikas</th><th>URL</th><th class="hide-sm">Įrenginys</th><th>Vieta</th><th class="hide-sm">IP</th></tr></thead>
   <tbody>
   <?php foreach ($clicks as $c): ?>

@@ -29,10 +29,10 @@
 
 <h2>Jūsų šablonai (<?= count($templates) ?>)</h2>
 <div class="tbl-wrap">
-<table>
+<table class="cards">
   <thead><tr><th>Pavadinimas</th><th>Tema</th><th class="num hide-sm">Panaudota</th><th></th></tr></thead>
   <tbody>
-  <?php if (!$templates): ?><tr><td colspan="4" style="color:var(--muted)">Šablonų dar nėra.</td></tr><?php endif; ?>
+  <?php if (!$templates): ?><tr><td colspan="4" class="empty-state">Šablonų dar nėra.</td></tr><?php endif; ?>
   <?php foreach ($templates as $t): ?>
     <tr>
       <td><b><?= e($t['name']) ?></b></td>

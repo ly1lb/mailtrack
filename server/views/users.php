@@ -1,7 +1,7 @@
 <?php $title = 'Vartotojai – MailTrack Pro'; ?>
 <h1>Vartotojai</h1>
 <div class="tbl-wrap">
-<table>
+<table class="cards">
   <thead><tr><th>El. paštas</th><th>Vardas</th><th>Rolė</th><th class="num">Laiškai</th><th class="hide-sm">Paskutinis prisijungimas</th><th></th></tr></thead>
   <?php foreach ($users as $x): ?>
     <tr><td><?= e($x['email']) ?></td><td><?= e($x['name']) ?></td><td><?= e($x['role']) ?></td><td class="num"><?= (int)$x['emails'] ?></td><td class="hide-sm"><?= e(fmt_dt($x['last_login_at'])) ?></td>

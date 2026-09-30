@@ -16,26 +16,18 @@
   --bad: #b3261e;
   --bad-bg: #fde8e7;
   --bar: #2a78d6;
-  --radius: 10px;
+  --radius: 12px;
+  --shadow: 0 1px 2px rgba(16,24,40,.06), 0 1px 3px rgba(16,24,40,.04);
+  --tap: 44px;              /* minimalus lietimo taikinys telefone */
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
-    --bg: #111213;
-    --surface: #1a1a19;
-    --surface-2: #232422;
-    --border: #33342f;
-    --text: #f5f5f3;
-    --text-2: #c3c2b7;
-    --muted: #8f8e86;
-    --accent: #3987e5;
-    --good: #5cc27f;
-    --good-bg: #16301f;
-    --warn: #e0b04a;
-    --warn-bg: #33290f;
-    --bad: #f08a83;
-    --bad-bg: #3a1c1a;
-    --bar: #3987e5;
+    --bg: #111213; --surface: #1a1a19; --surface-2: #232422; --border: #33342f;
+    --text: #f5f5f3; --text-2: #c3c2b7; --muted: #8f8e86; --accent: #3987e5;
+    --good: #5cc27f; --good-bg: #16301f; --warn: #e0b04a; --warn-bg: #33290f;
+    --bad: #f08a83; --bad-bg: #3a1c1a; --bar: #3987e5;
+    --shadow: 0 1px 2px rgba(0,0,0,.4);
   }
 }
 :root[data-theme="dark"] {
@@ -44,125 +36,228 @@
   --text: #f5f5f3; --text-2: #c3c2b7; --muted: #8f8e86; --accent: #3987e5;
   --good: #5cc27f; --good-bg: #16301f; --warn: #e0b04a; --warn-bg: #33290f;
   --bad: #f08a83; --bad-bg: #3a1c1a; --bar: #3987e5;
+  --shadow: 0 1px 2px rgba(0,0,0,.4);
 }
 
-* { box-sizing: border-box; }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { margin: 0; }
 body {
   background: var(--bg);
   color: var(--text);
-  font: 14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font: 15px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-text-size-adjust: 100%;
 }
 a { color: var(--accent); text-decoration: none; }
 a:hover { text-decoration: underline; }
 code, pre, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; }
-h1 { font-size: 22px; margin: 0 0 16px; }
-h2 { font-size: 17px; margin: 24px 0 10px; }
-h3 { font-size: 15px; margin: 16px 0 8px; }
+h1 { font-size: 22px; margin: 0 0 16px; letter-spacing: -.01em; }
+h2 { font-size: 17px; margin: 28px 0 12px; }
+h3 { font-size: 15px; margin: 18px 0 8px; }
+h2:first-child, h3:first-child { margin-top: 0; }
 
-.top {
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-  position: sticky; top: 0; z-index: 10;
-}
-.top-in { max-width: 1200px; margin: 0 auto; padding: 0 16px; display: flex; align-items: center; gap: 18px; min-height: 56px; flex-wrap: wrap; }
-.brand { font-weight: 700; font-size: 16px; color: var(--text); display: flex; align-items: center; gap: 8px; }
+/* ---------- Viršus / navigacija ---------- */
+.top { background: var(--surface); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 30; }
+.top-in { max-width: 1240px; margin: 0 auto; padding: 0 16px; display: flex; align-items: center; gap: 14px; min-height: 58px; }
+.brand { font-weight: 700; font-size: 16px; color: var(--text); display: flex; align-items: center; gap: 8px; white-space: nowrap; }
 .brand:hover { text-decoration: none; }
-.brand .tick { color: var(--good); font-weight: 800; }
-.nav { display: flex; gap: 4px; flex-wrap: wrap; flex: 1; }
-.nav a { color: var(--text-2); padding: 6px 10px; border-radius: 8px; }
-.nav a.on, .nav a:hover { background: var(--surface-2); color: var(--text); text-decoration: none; }
-.userbox { display: flex; gap: 8px; align-items: center; color: var(--muted); font-size: 13px; }
+.brand .tick { color: var(--good); font-weight: 800; letter-spacing: -2px; }
+.nav { display: flex; gap: 2px; flex: 1; overflow-x: auto; scrollbar-width: none; }
+.nav::-webkit-scrollbar { display: none; }
+.nav a {
+  color: var(--text-2); padding: 8px 12px; border-radius: 8px; white-space: nowrap;
+  display: inline-flex; align-items: center; min-height: 38px;
+}
+.nav a.on { background: var(--accent); color: var(--accent-ink); }
+.nav a:not(.on):hover { background: var(--surface-2); color: var(--text); text-decoration: none; }
+/* „Daugiau" – administravimo punktai, kad juosta netaptų per ilga */
+.navmore { position: relative; }
+.navmore > summary {
+  list-style: none; cursor: pointer; color: var(--text-2); padding: 8px 12px;
+  border-radius: 8px; white-space: nowrap; display: inline-flex; align-items: center; min-height: 38px;
+}
+.navmore > summary::-webkit-details-marker { display: none; }
+.navmore > summary:hover { background: var(--surface-2); color: var(--text); }
+.navmore > summary.on { background: var(--accent); color: var(--accent-ink); }
+.navmore-menu {
+  position: absolute; right: 0; top: calc(100% + 6px); min-width: 190px; z-index: 40;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+  box-shadow: 0 8px 28px rgba(0,0,0,.16); padding: 6px; display: flex; flex-direction: column; gap: 2px;
+}
+.navmore-menu a { padding: 10px 12px; border-radius: 7px; }
 
-.wrap { max-width: 1200px; margin: 0 auto; padding: 20px 16px 60px; }
-.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 16px; }
+.userbox { display: flex; gap: 10px; align-items: center; color: var(--muted); font-size: 13px; white-space: nowrap; }
+.burger { display: none; background: none; border: 0; color: var(--text); font-size: 22px; cursor: pointer; padding: 6px 8px; border-radius: 8px; }
+.burger:hover { background: var(--surface-2); }
+
+.wrap { max-width: 1240px; margin: 0 auto; padding: 20px 16px 72px; }
+
+/* ---------- Kortelės ir tinklelis ---------- */
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 16px; box-shadow: var(--shadow); }
+.card > h3:first-child { margin-top: 0; }
 .grid { display: grid; gap: 12px; }
 .g4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .g2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-@media (max-width: 800px) { .g4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } .g2 { grid-template-columns: 1fr; } }
 
-.tile { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; }
+.tile { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; box-shadow: var(--shadow); }
 .tile .lbl { color: var(--text-2); font-size: 12.5px; }
-.tile .num { font-size: 26px; font-weight: 700; margin-top: 2px; font-variant-numeric: tabular-nums; }
+.tile .num { font-size: 27px; font-weight: 700; margin-top: 2px; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
 .tile .sub { color: var(--muted); font-size: 12px; }
 
-.btn { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text); border-radius: 8px; padding: 7px 12px; font: inherit; cursor: pointer; }
+/* ---------- Mygtukai / formos ---------- */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  border: 1px solid var(--border); background: var(--surface); color: var(--text);
+  border-radius: 9px; padding: 9px 14px; font: inherit; font-size: 14px; cursor: pointer;
+  min-height: 40px;
+}
 .btn:hover { background: var(--surface-2); text-decoration: none; }
 .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 .btn.primary:hover { filter: brightness(1.07); }
 .btn.danger { color: var(--bad); }
-.btn.sm { padding: 3px 8px; font-size: 12.5px; }
+.btn.sm { padding: 5px 10px; font-size: 13px; min-height: 32px; }
 form.inline { display: inline; }
 
-input[type=text], input[type=email], input[type=password], input[type=url], input[type=number], select, textarea {
-  width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); font: inherit;
+input[type=text], input[type=email], input[type=password], input[type=url], input[type=number], input[type=file], select, textarea {
+  width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 9px;
+  background: var(--surface); color: var(--text); font: inherit; font-size: 16px; /* 16px = iOS nedidina */
+  min-height: 42px;
 }
-textarea { min-height: 80px; }
-label { display: block; font-weight: 600; margin: 10px 0 4px; font-size: 13px; }
-label.chk { font-weight: 400; display: flex; gap: 8px; align-items: center; }
-.help { color: var(--muted); font-size: 12.5px; margin-top: 3px; }
+textarea { min-height: 96px; }
+label { display: block; font-weight: 600; margin: 12px 0 4px; font-size: 13.5px; }
+label.chk { font-weight: 400; display: flex; gap: 10px; align-items: flex-start; margin: 10px 0; line-height: 1.4; }
+label.chk input { width: auto; min-height: 0; margin-top: 3px; flex: none; }
+.help { color: var(--muted); font-size: 12.5px; margin-top: 4px; }
 
+/* ---------- Lentelės (telefone virsta kortelėmis) ---------- */
 table { width: 100%; border-collapse: collapse; }
-th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+th, td { text-align: left; padding: 11px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
 th { color: var(--text-2); font-weight: 600; font-size: 12.5px; background: var(--surface-2); }
-tr:hover td { background: color-mix(in srgb, var(--surface-2) 50%, transparent); }
-.tbl-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
-.tbl-wrap table th:first-child, .tbl-wrap table td:first-child { padding-left: 14px; }
+tbody tr:last-child td { border-bottom: 0; }
+.tbl-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); }
 td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .subject { font-weight: 600; color: var(--text); }
 .recip { color: var(--muted); font-size: 12.5px; }
 .ignored td { color: var(--muted); }
-.ignored td:not(:last-child) { text-decoration: line-through; text-decoration-color: var(--border); }
+.ignored .subject, .ignored td:first-child { text-decoration: line-through; text-decoration-color: var(--border); }
 
 .status { font-weight: 800; letter-spacing: -2px; font-size: 15px; white-space: nowrap; }
 .status.s0 { color: var(--muted); }
 .status.s1 { color: var(--good); }
-.badge { display: inline-block; padding: 1px 8px; border-radius: 99px; font-size: 12px; background: var(--surface-2); color: var(--text-2); white-space: nowrap; }
+.badge { display: inline-block; padding: 2px 9px; border-radius: 99px; font-size: 12px; background: var(--surface-2); color: var(--text-2); white-space: nowrap; }
 .badge.good { background: var(--good-bg); color: var(--good); }
 .badge.warn { background: var(--warn-bg); color: var(--warn); }
 .badge.bad { background: var(--bad-bg); color: var(--bad); }
 
-.flash { padding: 10px 14px; border-radius: 8px; margin-bottom: 12px; background: var(--good-bg); color: var(--good); }
+.flash { padding: 12px 16px; border-radius: 10px; margin-bottom: 14px; background: var(--good-bg); color: var(--good); }
 .flash.err { background: var(--bad-bg); color: var(--bad); }
 
-.filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
-.filters .chips a { padding: 5px 10px; border-radius: 99px; border: 1px solid var(--border); color: var(--text-2); background: var(--surface); }
-.filters .chips a.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
-.filters .chips { display: flex; gap: 6px; flex-wrap: wrap; }
-.filters form { margin-left: auto; display: flex; gap: 6px; }
-.filters input { width: 220px; }
+/* ---------- Filtrai ---------- */
+.filters { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.chips a {
+  padding: 7px 13px; border-radius: 99px; border: 1px solid var(--border);
+  color: var(--text-2); background: var(--surface); font-size: 13.5px; min-height: 36px;
+  display: inline-flex; align-items: center;
+}
+.chips a.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.filters form { margin-left: auto; display: flex; gap: 8px; }
+.filters input[type=text] { width: 230px; }
 
+/* ---------- Grafikas / srautas ---------- */
 .chart { width: 100%; height: 150px; display: block; }
 .chart .bar { fill: var(--bar); }
-.chart .bar:hover { opacity: .8; }
 .chart .axis { fill: var(--muted); font-size: 10px; }
 .chart .gl { stroke: var(--border); stroke-width: 1; }
-.feed { list-style: none; margin: 0; padding: 0; }
-.feed li { padding: 8px 0; border-bottom: 1px solid var(--border); }
-.feed li:last-child { border-bottom: 0; }
-.feed .t { font-weight: 600; }
-.feed .b { color: var(--text-2); font-size: 12.5px; white-space: pre-line; }
-.feed .w { color: var(--muted); font-size: 12px; }
 
-.log { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px; overflow-x: auto; max-height: 70vh; }
+.feed { list-style: none; margin: 0; padding: 0; }
+.feed li { display: flex; gap: 11px; padding: 11px 0; border-bottom: 1px solid var(--border); }
+.feed li:last-child { border-bottom: 0; }
+.feed .ic { font-size: 16px; line-height: 1.3; flex: none; width: 22px; text-align: center; }
+.feed .mid { flex: 1; min-width: 0; }
+.feed .t { font-weight: 600; display: block; }
+.feed .b { color: var(--text-2); font-size: 13px; white-space: pre-line; word-break: break-word; }
+.feed .w { color: var(--muted); font-size: 12px; margin-top: 2px; }
+
+.log { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; overflow-x: auto; max-height: 70vh; }
 .log div { white-space: pre; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; padding: 1px 0; }
 .log .ERROR { color: var(--bad); }
 .log .WARNING { color: var(--warn); }
 .log .DEBUG { color: var(--muted); }
 
-.copy-box { display: flex; gap: 6px; }
-.copy-box input { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; }
+.copy-box { display: flex; gap: 8px; }
+.copy-box input { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; }
 
-.toast { position: fixed; right: 16px; bottom: 16px; max-width: 360px; background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--good); border-radius: 8px; padding: 10px 14px; box-shadow: 0 6px 24px rgba(0,0,0,.18); z-index: 50; }
+.toast { position: fixed; right: 16px; bottom: 16px; max-width: 360px; background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--good); border-radius: 10px; padding: 12px 16px; box-shadow: 0 6px 24px rgba(0,0,0,.18); z-index: 50; }
 .toast .t { font-weight: 600; }
-.toast .b { color: var(--text-2); font-size: 12.5px; white-space: pre-line; }
+.toast .b { color: var(--text-2); font-size: 13px; white-space: pre-line; }
 
-.login { max-width: 380px; margin: 10vh auto; }
-.pager { display: flex; gap: 8px; justify-content: center; margin-top: 12px; }
-.steps li { margin-bottom: 8px; }
-@media (max-width: 640px) {
+.login { max-width: 400px; margin: 8vh auto; }
+.pager { display: flex; gap: 10px; justify-content: center; align-items: center; margin-top: 16px; }
+.steps li { margin-bottom: 10px; }
+.empty-state { color: var(--muted); padding: 28px 16px; text-align: center; }
+
+/* ================= TELEFONAS ================= */
+@media (max-width: 860px) {
+  .g4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .g2 { grid-template-columns: 1fr; }
+}
+@media (max-width: 700px) {
+  body { font-size: 15px; }
+  .wrap { padding: 14px 12px 80px; }
+  h1 { font-size: 20px; }
+  .top-in { min-height: 54px; padding: 0 12px; gap: 10px; flex-wrap: wrap; }
+  .burger { display: block; order: 3; margin-left: auto; }
+  .userbox .email { display: none; }
+  /* meniu telefone – po antrašte, atidaromas mygtuku */
+  .nav {
+    order: 10; width: 100%; display: none; flex-direction: column; gap: 2px;
+    padding: 6px 0 10px; border-top: 1px solid var(--border); overflow: visible;
+  }
+  .nav.open { display: flex; }
+  .nav a { padding: 12px 14px; min-height: var(--tap); font-size: 15.5px; }
+  /* telefone „Daugiau" – tiesiog sąrašo dalis, be iškrentančio meniu */
+  .navmore { position: static; }
+  .navmore > summary { display: none; }
+  .navmore-menu {
+    position: static; border: 0; box-shadow: none; background: transparent;
+    padding: 0; min-width: 0; border-top: 1px solid var(--border); margin-top: 6px; padding-top: 6px;
+  }
+  .navmore-menu a { padding: 12px 14px; min-height: var(--tap); font-size: 15.5px; }
+
+  .tile { padding: 12px 14px; }
+  .tile .num { font-size: 23px; }
+  .card { padding: 14px; }
   .filters form { margin-left: 0; width: 100%; }
-  .filters input { width: 100%; }
-  .hide-sm { display: none; }
-  .top-in { gap: 8px; padding: 8px 16px; }
+  .filters input[type=text] { width: 100%; flex: 1; }
+  .hide-sm { display: none !important; }
+  .btn { min-height: var(--tap); }
+
+  /* Lentelė -> kortelės */
+  .tbl-wrap { border: 0; background: transparent; box-shadow: none; overflow: visible; }
+  table.cards, table.cards thead { display: block; }
+  table.cards thead { display: none; }
+  table.cards tbody, table.cards tr, table.cards td { display: block; width: 100%; }
+  table.cards tr {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    margin-bottom: 10px; padding: 12px 14px; box-shadow: var(--shadow);
+  }
+  table.cards td { border: 0; padding: 3px 0; }
+  table.cards td.num { text-align: left; }
+  table.cards td[data-l]::before {
+    content: attr(data-l) ": "; color: var(--muted); font-size: 12.5px; font-weight: 600;
+  }
+  table.cards td:empty { display: none; }
+  .pager .btn { flex: 1; }
+}
+
+/* Populiariausios nuorodos – telefone URL per visą plotį, diagrama po juo */
+.toplinks td { padding: 8px 6px; }
+.toplinks td:first-child { word-break: break-all; }
+@media (max-width: 700px) {
+  .toplinks, .toplinks tbody, .toplinks tr, .toplinks td { display: block; width: 100%; }
+  .toplinks tr { padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .toplinks tr:last-child { border-bottom: 0; }
+  .toplinks td { border: 0; padding: 2px 0; width: auto !important; }
+  .toplinks td.num { text-align: left; color: var(--text-2); font-size: 13px; }
+  .toplinks td.num::before { content: "Paspaudimų: "; color: var(--muted); }
 }

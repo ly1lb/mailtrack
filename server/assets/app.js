@@ -17,6 +17,21 @@
     logRemote('error', 'JS: ' + e.message, { file: e.filename, line: e.lineno, page: location.pathname });
   });
 
+  function stripLeadEmoji(t) {
+    return String(t || '').replace(/^(?:[\u2190-\u27BF\u2B00-\u2BFF\uFE0F\u2705\u2713\u2714]|\uD83C[\uDF00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|\uD83E[\uDD00-\uDFFF]|\s)+/, '').trim();
+  }
+
+  // Mobilusis meniu
+  var burger = document.getElementById('burger');
+  var navEl = document.getElementById('nav');
+  if (burger && navEl) {
+    burger.addEventListener('click', function () {
+      var open = navEl.classList.toggle('open');
+      burger.setAttribute('aria-expanded', open ? 'true' : 'false');
+      burger.textContent = open ? '✕' : '☰';
+    });
+  }
+
   // Kopijavimo mygtukai
   document.addEventListener('click', function (ev) {
     var b = ev.target.closest('[data-copy]');
@@ -83,11 +98,15 @@
             try { var no = new Notification(n.title, { body: n.body, icon: base + '/assets/icon-192.png', tag: 'mt-' + n.id }); no.onclick = function () { window.focus(); location.href = n.url; }; } catch (e) {}
           }
           if (feed) {
+            var icons = { open: '👁', click: '🔗', doc: '📄', reminder: '⏰' };
             var li = document.createElement('li');
-            li.innerHTML = '<a class="t"></a><div class="b"></div><div class="w">ką tik</div>';
-            li.querySelector('a').textContent = n.title; li.querySelector('a').href = n.url;
-            li.querySelector('.b').textContent = n.body;
+            li.innerHTML = '<div class="ic"></div><div class="mid"><a class="t"></a><div class="b"></div><div class="w">ką tik</div></div>';
+            li.querySelector('.ic').textContent = icons[n.type] || '✉️';
+            var a = li.querySelector('a');
+            a.textContent = stripLeadEmoji(n.title); a.href = n.url;
+            li.querySelector('.b').textContent = (n.body || '').split('\n')[0];
             feed.insertBefore(li, feed.firstChild);
+            while (feed.children.length > 12) feed.removeChild(feed.lastChild);
           }
         });
       })

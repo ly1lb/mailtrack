@@ -261,3 +261,9 @@ function iso_utc(?string $utc): ?string
 {
     return $utc ? str_replace(' ', 'T', $utc) . 'Z' : null;
 }
+
+/** Nukerpa pradzioje esancia emoji/zymeni – srauto ikona pieziame atskirai. */
+function strip_lead_emoji(string $t): string
+{
+    return trim(preg_replace('/^(?:[\x{1F300}-\x{1FAFF}\x{2190}-\x{27BF}\x{2B00}-\x{2BFF}\x{FE0F}\x{2705}\x{2713}\x{2714}]+\s*)+/u', '', $t));
+}

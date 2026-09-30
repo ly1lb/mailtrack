@@ -14,7 +14,7 @@
 <div class="card">
   <h3 style="margin-top:0">Populiariausios nuorodos</h3>
   <?php $max = max(array_map(fn($l) => (int)$l['cnt'], $topLinks)); ?>
-  <table>
+  <table class="toplinks">
     <?php foreach ($topLinks as $l): ?>
       <tr>
         <td style="word-break:break-all"><a href="<?= e($l['url']) ?>" target="_blank" rel="noopener noreferrer"><?= e($l['url']) ?></a></td>
@@ -32,22 +32,22 @@
 
 <h2>Istorija (<?= (int)$total ?>)</h2>
 <div class="tbl-wrap">
-<table>
+<table class="cards">
   <thead><tr><th>Laikas</th><th>Laiškas</th><th>Nuoroda</th><th class="hide-sm">Įrenginys</th><th>Vieta</th><th></th></tr></thead>
   <tbody>
   <?php if (!$clicks): ?>
-    <tr><td colspan="6" style="color:var(--muted);padding:24px">
+    <tr><td colspan="6" class="empty-state">
       Paspaudimų nėra.<br><span class="help">Nuorodos perrašomos automatiškai, kai rašote laišką su plėtiniu (turi būti įjungtas „✓✓ Sekama“ ir nustatymuose – nuorodų sekimas).</span>
     </td></tr>
   <?php endif; ?>
   <?php foreach ($clicks as $c): ?>
     <tr class="<?= $c['ignored'] ? 'ignored' : '' ?>">
-      <td><?= e(fmt_dt($c['clicked_at'], 'Y-m-d H:i:s')) ?></td>
+      <td data-l="Laikas"><?= e(fmt_dt($c['clicked_at'], 'Y-m-d H:i:s')) ?></td>
       <td><a href="<?= e(base_url('email/' . $c['eid'])) ?>"><?= e($c['subject'] !== '' ? $c['subject'] : '(be temos)') ?></a>
         <div class="recip"><?= e(recipients_text($c['recipients'])) ?></div></td>
-      <td style="word-break:break-all;max-width:320px"><?= e($c['url']) ?></td>
+      <td data-l="Nuoroda" style="word-break:break-all;max-width:320px"><?= e($c['url']) ?></td>
       <td class="hide-sm"><?= e(trim($c['device'] . ' ' . $c['os'] . ' ' . $c['client'])) ?></td>
-      <td><?= e(trim($c['city'] . ($c['city'] && $c['country'] ? ', ' : '') . $c['country']) ?: '—') ?></td>
+      <td data-l="Vieta"><?= e(trim($c['city'] . ($c['city'] && $c['country'] ? ', ' : '') . $c['country']) ?: '—') ?></td>
       <td><?php if ($c['ignored']): ?><span class="badge"><?= e($c['ignore_reason']) ?></span><?php endif; ?></td>
     </tr>
   <?php endforeach; ?>

@@ -204,10 +204,19 @@ final class Tracker
         if ($reason === '') {
             self::recount((int)$email['id']);
             Logger::info('Nuoroda paspausta', ['email' => $email['id'], 'link' => $link['id']]);
-            if (!empty($user['notify_clicks'])) {
-                $subj = $email['subject'] !== '' ? $email['subject'] : '(be temos)';
-                Notifier::notify($user, 'click', '🔗 Paspausta nuoroda: ' . $subj, "Nuoroda: {$link['url']}\n" . self::whereText($p, $geo), (int)$email['id'], null, true, ['email_uid' => $email['uid'], 'url' => $link['url']]);
-            }
+            // Į veiklos srautą rašom VISADA – nustatymas „pranešti apie paspaudimus“
+            // valdo tik išsiuntimą (Telegram/el. paštas), o ne istoriją skydelyje.
+            $subj = $email['subject'] !== '' ? $email['subject'] : '(be temos)';
+            Notifier::notify(
+                $user,
+                'click',
+                '🔗 Paspausta nuoroda: ' . $subj,
+                "Nuoroda: {$link['url']}\n" . self::whereText($p, $geo),
+                (int)$email['id'],
+                null,
+                !empty($user['notify_clicks']),
+                ['email_uid' => $email['uid'], 'url' => $link['url']]
+            );
         }
         return $link['url'];
     }
