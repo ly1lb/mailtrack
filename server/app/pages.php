@@ -50,6 +50,7 @@ if ($path === '') {
     if ($filter === 'opened') $where .= ' AND open_count > 0';
     if ($filter === 'unopened') $where .= ' AND open_count = 0';
     if ($filter === 'clicked') $where .= ' AND click_count > 0';
+    if ($filter === 'forwarded') $where .= ' AND forward_at IS NOT NULL';
     if ($filter === 'reminders') $where .= ' AND reminder_at IS NOT NULL AND reminder_sent = 0';
     if ($q !== '') {
         $where .= ' AND (subject LIKE :q OR recipients LIKE :q)';
@@ -288,6 +289,9 @@ if ($path === 'settings' || preg_match('#^settings/([a-z-]+)$#', $path, $m)) {
                     'notify_telegram' => isset($_POST['notify_telegram']) ? 1 : 0,
                     'notify_clicks' => isset($_POST['notify_clicks']) ? 1 : 0,
                     'notify_old_opens' => isset($_POST['notify_old_opens']) ? 1 : 0,
+                    'old_open_days' => max(1, min(365, (int)($_POST['old_open_days'] ?? 7))),
+                    'notify_forwards' => isset($_POST['notify_forwards']) ? 1 : 0,
+                    'forward_opens' => max(0, min(100, (int)($_POST['forward_opens'] ?? 5))),
                     'notify_mode' => in_array($_POST['notify_mode'] ?? '', ['every', 'first', 'off'], true) ? $_POST['notify_mode'] : 'every',
                     'notify_skip_prefetch' => isset($_POST['notify_skip_prefetch']) ? 1 : 0,
                     'telegram_chat_id' => preg_replace('/[^0-9-]/', '', (string)($_POST['telegram_chat_id'] ?? '')),

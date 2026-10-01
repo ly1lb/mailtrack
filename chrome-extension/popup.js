@@ -14,7 +14,7 @@ function ago(iso) {
   } catch (e) { return ''; }
 }
 function icon(type) {
-  return type === 'open' ? '👁' : type === 'click' ? '🔗' : type === 'doc' ? '📄' : type === 'reminder' ? '⏰' : '✉️';
+  return type === 'open' ? '👁' : type === 'forward' ? '↪' : type === 'click' ? '🔗' : type === 'doc' ? '📄' : type === 'reminder' ? '⏰' : '✉️';
 }
 
 chrome.storage.sync.get({ serverUrl: '', apiKey: '', userEmail: '', trackByDefault: true }, function (c) {

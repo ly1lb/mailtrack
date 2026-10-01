@@ -296,6 +296,9 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .feed .meta .where { color: var(--muted); }
 .badge.times { background: var(--good-bg); color: var(--good); }
 .badge.old { background: var(--warn-bg); color: var(--warn); }
+.badge.fwd { background: var(--warn-bg); color: var(--warn); font-weight: 600; }
+.fwd-note { border-left: 4px solid var(--warn); background: var(--warn-bg); color: var(--text); }
+.fwd-note .help { margin-top: 4px; }
 .badge.live { background: var(--good-bg); color: var(--good); }
 
 /* Avatarų paletė – validuota kategorinė paletė (švelnus fonas + sodrus tekstas) */

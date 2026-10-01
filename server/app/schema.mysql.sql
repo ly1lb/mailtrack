@@ -14,6 +14,8 @@ CREATE TABLE IF NOT EXISTS users (
   notify_clicks TINYINT NOT NULL DEFAULT 1,
   notify_old_opens TINYINT NOT NULL DEFAULT 1,
   old_open_days INT NOT NULL DEFAULT 7,
+  notify_forwards TINYINT NOT NULL DEFAULT 1,
+  forward_opens INT NOT NULL DEFAULT 5,
   telegram_chat_id VARCHAR(64) NOT NULL DEFAULT '',
   webhook_url VARCHAR(500) NOT NULL DEFAULT '',
   daily_report TINYINT NOT NULL DEFAULT 1,
@@ -44,6 +46,8 @@ CREATE TABLE IF NOT EXISTS emails (
   reminder_sent TINYINT NOT NULL DEFAULT 0,
   archived TINYINT NOT NULL DEFAULT 0,
   note VARCHAR(500) NOT NULL DEFAULT '',
+  forward_at DATETIME NULL,
+  forward_reason VARCHAR(250) NOT NULL DEFAULT '',
   INDEX idx_emails_user (user_id, created_at),
   INDEX idx_emails_reminder (reminder_sent, reminder_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

@@ -33,6 +33,7 @@
   display: inline-block;
 }
 .mt-banner.on { background: #e6f4ea; color: #16803c; }
+.mt-banner.fwd { background: #fef3e0; color: #b06000; }
 
 .mt-list-badge {
   display: inline-block;
@@ -44,6 +45,7 @@
   cursor: default;
 }
 .mt-list-badge.on { color: #1e8e3e; } /* žalia – atidaryta (kaip Mailsuite) */
+.mt-list-badge.fwd { color: #b06000; } /* oranžinė – galimai persiųstas */
 
 .mt-tpl { color: #1a73e8; }
 

@@ -6,6 +6,11 @@ $opened = (int)$email['open_count'] > 0;
 <p><a href="<?= e(base_url('')) ?>">← Visi laiškai</a></p>
 <h1><span class="status <?= $opened ? 's1' : 's0' ?>"><?= $opened ? '✓✓' : '✓' ?></span> <?= e($email['subject'] ?: '(be temos)') ?></h1>
 
+<?php if (!empty($email['forward_at'])): ?>
+<div class="card fwd-note">↪ <b>Galimai persiųstas</b> – <?= e($email['forward_reason']) ?> <span class="muted-note">(pažymėta <?= e(fmt_dt($email['forward_at'])) ?>)</span>
+  <div class="help">Tikro persiuntimo pamatyti neįmanoma – persiųstame laiške lieka tas pats pikselis. Tai spėjimas, kaip ir Mailtrack/Mailsuite: gavėjas galėjo laišką skaityti daug kartų ar keliuose įrenginiuose.</div>
+</div>
+<?php endif; ?>
 <div class="grid g4">
   <div class="tile"><div class="lbl">Atidarymai</div><div class="num"><?= (int)$email['open_count'] ?></div></div>
   <div class="tile"><div class="lbl">Pirmas atidarymas</div><div class="num" style="font-size:16px"><?= e(fmt_dt($email['first_open_at'])) ?></div><div class="sub"><?= e(ago($email['first_open_at'])) ?></div></div>

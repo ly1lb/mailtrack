@@ -180,6 +180,8 @@ function email_json(array $e): array
         'click_count' => (int)$e['click_count'],
         'first_open_at' => iso_utc($e['first_open_at']),
         'last_open_at' => iso_utc($e['last_open_at']),
+        'forwarded' => !empty($e['forward_at']),
+        'forward_reason' => (string)($e['forward_reason'] ?? ''),
         'pixel_url' => pixel_url($e['uid']),
         'dashboard_url' => base_url('email/' . $e['id']),
     ];

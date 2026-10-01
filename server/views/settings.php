@@ -38,6 +38,13 @@ $tzs = DateTimeZone::listIdentifiers();
     <label class="chk"><input type="checkbox" name="notify_telegram" <?= $u['notify_telegram'] ? 'checked' : '' ?>> Telegram (momentiniai pranešimai telefone)</label>
     <label class="chk"><input type="checkbox" name="notify_clicks" <?= $u['notify_clicks'] ? 'checked' : '' ?>> Pranešti apie nuorodų paspaudimus</label>
     <label class="chk"><input type="checkbox" name="notify_old_opens" <?= (!isset($u['notify_old_opens']) || $u['notify_old_opens']) ? 'checked' : '' ?>> Visada pranešti, kai atidaromas <b>senas</b> laiškas (svarbus signalas – kaip Mailsuite)</label>
+    <label>Laiškas laikomas senu po (dienų)</label>
+    <input type="number" name="old_open_days" min="1" max="365" value="<?= (int)($u['old_open_days'] ?? 7) ?>">
+    <div class="help">Pranešama, kai tiek dienų senas laiškas atidaromas pirmą kartą arba po bent 12 val. pertraukos.</div>
+    <label class="chk"><input type="checkbox" name="notify_forwards" <?= (!isset($u['notify_forwards']) || $u['notify_forwards']) ? 'checked' : '' ?>> Pranešti, kai laiškas <b>galimai persiųstas</b> (dažnai atidaromas ar atidarytas iš skirtingų vietų – kaip Mailsuite)</label>
+    <label>„Galimai persiųstas“ – po kiek atidarymų (vienam gavėjui)</label>
+    <input type="number" name="forward_opens" min="0" max="100" value="<?= (int)($u['forward_opens'] ?? 5) ?>">
+    <div class="help">Tikro persiuntimo nemato niekas (ir Mailtrack) – persiųstame laiške lieka tas pats pikselis, todėl spėjama iš atidarymų skaičiaus ir skirtingų šalių/vietų. Kai gavėjų keli, riba dauginama iš jų skaičiaus. 0 – pagal skaičių nežymėti (lieka tik skirtingų vietų požymis). Pranešama vieną kartą.</div>
     <label>Kada pranešti apie atidarymą</label>
     <select name="notify_mode">
       <option value="every" <?= $u['notify_mode'] === 'every' ? 'selected' : '' ?>>Kiekvieną kartą (rekomenduojama)</option>
@@ -57,7 +64,9 @@ $tzs = DateTimeZone::listIdentifiers();
         Telegram: <?= $tgOn ? '<b style="color:var(--good)">VEIKIA ✓</b>' : '<b style="color:var(--bad)">NEVEIKIA</b> – ' . (telegram_token() === '' ? 'nėra boto rakto' : (($u['telegram_chat_id'] ?? '') === '' ? 'nėra chat ID' : 'nepažymėta „Telegram“ varnelė')) ?><br>
         El. paštas: <?= $mailOn ? '<b style="color:var(--good)">VEIKIA ✓</b>' : '<b style="color:var(--bad)">NEVEIKIA</b> – ' . (empty($u['notify_email']) ? 'nepažymėta varnelė' : 'nėra SMTP prisijungimo duomenų config.php') ?><br>
         Apie atidarymus: <b><?= ['every' => 'kiekvieną kartą', 'first' => 'tik pirmą tikrą', 'off' => 'nepranešama'][$u['notify_mode']] ?? '' ?></b>,
-        paspaudimus: <b><?= !empty($u['notify_clicks']) ? 'taip' : 'ne' ?></b>
+        paspaudimus: <b><?= !empty($u['notify_clicks']) ? 'taip' : 'ne' ?></b>,
+        senus laiškus: <b><?= (!isset($u['notify_old_opens']) || $u['notify_old_opens']) ? 'taip' : 'ne' ?></b>,
+        galimai persiųstus: <b><?= (!isset($u['notify_forwards']) || $u['notify_forwards']) ? 'taip' : 'ne' ?></b>
       </div>
     </div>
     <label>Telegram chat ID</label>

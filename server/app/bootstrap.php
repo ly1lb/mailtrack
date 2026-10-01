@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 define('APP_ROOT', dirname(__DIR__));
-define('APP_VERSION', '1.0.3');
+define('APP_VERSION', '1.0.4');
 
 require __DIR__ . '/Logger.php';
 require __DIR__ . '/DB.php';
@@ -86,6 +86,34 @@ try {
     if (!in_array('old_open_days', $cols, true)) {
         DB::pdo()->exec('ALTER TABLE users ADD COLUMN old_open_days INT NOT NULL DEFAULT 7');
         Logger::info('Migracija: pridėtas users.old_open_days');
+    }
+    if (!in_array('notify_forwards', $cols, true)) {
+        DB::pdo()->exec('ALTER TABLE users ADD COLUMN notify_forwards TINYINT NOT NULL DEFAULT 1');
+        Logger::info('Migracija: pridėtas users.notify_forwards');
+    }
+    if (!in_array('forward_opens', $cols, true)) {
+        DB::pdo()->exec('ALTER TABLE users ADD COLUMN forward_opens INT NOT NULL DEFAULT 5');
+        Logger::info('Migracija: pridėtas users.forward_opens');
+    }
+
+    // Nauji emails stulpeliai („galimai persiųstas“)
+    $ecols = [];
+    if (DB::driver() === 'sqlite') {
+        foreach (DB::all('PRAGMA table_info(emails)') as $c) {
+            $ecols[] = $c['name'];
+        }
+    } else {
+        foreach (DB::all('SHOW COLUMNS FROM emails') as $c) {
+            $ecols[] = $c['Field'];
+        }
+    }
+    if (!in_array('forward_at', $ecols, true)) {
+        DB::pdo()->exec('ALTER TABLE emails ADD COLUMN forward_at DATETIME NULL');
+        Logger::info('Migracija: pridėtas emails.forward_at');
+    }
+    if (!in_array('forward_reason', $ecols, true)) {
+        DB::pdo()->exec("ALTER TABLE emails ADD COLUMN forward_reason VARCHAR(250) NOT NULL DEFAULT ''");
+        Logger::info('Migracija: pridėtas emails.forward_reason');
     }
 } catch (Throwable $e) {
     Logger::warning('Migracijos klaida: ' . $e->getMessage());

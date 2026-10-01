@@ -632,17 +632,20 @@
     var txt = opened
       ? '✓✓ MailTrack: atidaryta ' + d.open_count + ' k.' + (d.last_open_at ? ' · paskutinis ' + fmtShort(d.last_open_at) : '')
       : '✓ MailTrack: išsiųsta, dar neatidaryta';
+    if (d.forwarded) txt += ' · ↪ galimai persiųstas';
+    var cls = 'mt-banner ' + (opened ? 'on' : '') + (d.forwarded ? ' fwd' : '');
+    var tip = d.forwarded && d.forward_reason ? d.forward_reason + ' · atidaryti skydelį' : 'Atidaryti skydelį';
     var prev = msgEl.previousElementSibling;
     if (prev && prev.classList.contains('mt-banner')) {
-      prev.className = 'mt-banner ' + (opened ? 'on' : '');
+      prev.className = cls;
       prev.textContent = txt;
-      prev.title = 'Atidaryti skydelį';
+      prev.title = tip;
       return;
     }
     var b = document.createElement('div');
-    b.className = 'mt-banner ' + (opened ? 'on' : '');
+    b.className = cls;
     b.textContent = txt;
-    b.title = 'Atidaryti skydelį';
+    b.title = tip;
     b.addEventListener('click', function () { window.open(d.dashboard_url, '_blank'); });
     insertBefore(b, msgEl);
   }
@@ -725,10 +728,11 @@
           else return;
         }
         badge.classList.toggle('on', opened);
-        badge.textContent = '●';
-        badge.title = opened
+        badge.classList.toggle('fwd', !!e.forwarded);
+        badge.textContent = e.forwarded ? '↪' : '●';
+        badge.title = (opened
           ? ('MailTrack: atidaryta ' + e.open_count + ' k.' + (e.last_open_at ? ' · ' + fmtShort(e.last_open_at) : ''))
-          : 'MailTrack: sekama · dar neatidaryta';
+          : 'MailTrack: sekama · dar neatidaryta') + (e.forwarded ? ' · galimai persiųstas' : '');
         row.__mtBadge = true;
       });
     });

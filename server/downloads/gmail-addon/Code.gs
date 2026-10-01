@@ -235,6 +235,7 @@ function onGmailMessageOpen(e) {
       var d = api('GET', 'emails/' + m[1]);
       var status = d.open_count > 0 ? '✓✓ Atidarytas ' + d.open_count + ' k.' : '✓ Dar neatidarytas';
       s.addWidget(CardService.newDecoratedText().setTopLabel('Būsena').setText(status).setWrapText(true));
+      if (d.forwarded) s.addWidget(CardService.newDecoratedText().setTopLabel('↪ Galimai persiųstas').setText(d.forward_reason || 'Dažnai atidaromas').setWrapText(true));
       if (d.first_open_at) s.addWidget(CardService.newDecoratedText().setTopLabel('Pirmas atidarymas').setText(d.first_open_at));
       if (d.last_open_at) s.addWidget(CardService.newDecoratedText().setTopLabel('Paskutinis').setText(d.last_open_at));
       if (d.click_count) s.addWidget(CardService.newDecoratedText().setTopLabel('Paspaudimai').setText(String(d.click_count)));

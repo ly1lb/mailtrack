@@ -98,7 +98,7 @@
             try { var no = new Notification(n.title, { body: n.body, icon: base + '/assets/icon-192.png', tag: 'mt-' + n.id }); no.onclick = function () { window.focus(); location.href = n.url; }; } catch (e) {}
           }
           if (feed) {
-            var icons = { open: '👁', click: '🔗', doc: '📄', reminder: '⏰' };
+            var icons = { open: '👁', forward: '↪', click: '🔗', doc: '📄', reminder: '⏰' };
             var li = document.createElement('li');
             li.innerHTML = '<span class="avatar h0">•</span><div class="mid"><a class="line"><b class="who"></b> <span class="subj"></span></a><div class="meta"><span class="ic-type"></span><span class="w">ką tik</span></div></div>';
             li.querySelector('.ic-type').textContent = icons[n.type] || '✉️';

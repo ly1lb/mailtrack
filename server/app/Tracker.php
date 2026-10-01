@@ -6,6 +6,8 @@ final class Tracker
     public const DUPLICATE_WINDOW = 30;  // sek. – pasikartojantys užklausimai iš to paties IP+UA
     public const PROXY_DEDUP_WINDOW = 180; // sek. (3 min) – sujungiam Google prefetch + iškart sekantį render,
                                            // bet tikrus vėlesnius pakartotinius atidarymus vis tiek skaičiuojam
+    public const OLD_OPEN_GAP = 43200;     // sek. (12 val.) – „senas laiškas atidarytas“ pranešam tik po tokios
+                                           // pertraukos nuo ankstesnio atidarymo (kitaip skaitant 5 k. iš eilės – 5 pranešimai)
 
     /**
      * Sukuria (arba atnaujina, jei uid jau yra) sekamą laišką.
@@ -99,7 +101,7 @@ final class Tracker
         if ($p['proxy'] === '' && !$p['bot']) {
             $geo = Geo::lookup($ip);
         }
-        DB::insert('opens', [
+        $openId = DB::insert('opens', [
             'email_id' => $email['id'],
             'opened_at' => now(),
             'ip' => $ip,
@@ -117,7 +119,7 @@ final class Tracker
             Logger::debug('Atidarymas ignoruotas', ['email' => $email['id'], 'reason' => $cl['reason']]);
             return;
         }
-        self::recount((int)$email['id']);
+        $fwdReason = self::recount((int)$email['id']);
         $count = (int)DB::value('SELECT open_count FROM emails WHERE id = ?', [$email['id']]);
         Logger::info('Laiškas atidarytas', ['email' => $email['id'], 'count' => $count, 'client' => $p['client']]);
 
@@ -151,29 +153,98 @@ final class Tracker
         // Senų laiškų atidarymai (kaip Mailsuite): jei laiškas išsiųstas seniai, o
         // gavėjas jį atidaro dabar – tai vertingiausias signalas, todėl pranešam
         // visada (nebent pranešimai visiškai išjungti arba funkcija išjungta).
+        // Tik po pertraukos: jei tą patį seną laišką skaito kelis kartus iš eilės,
+        // „senas laiškas“ pranešimas būna vienas, o kiti – įprasti atidarymai.
         $ageDays = (time() - strtotime($email['created_at'] . ' UTC')) / 86400;
         $oldDays = (int)($user['old_open_days'] ?? 7);
         $isOld = !$suspect && $oldDays > 0 && $ageDays >= $oldDays;
+        $gapDays = null;
+        if ($isOld) {
+            $prev = DB::value(
+                "SELECT MAX(opened_at) FROM opens WHERE email_id = ? AND id <> ? AND ignored = 0 AND ignore_reason = ''",
+                [$email['id'], $openId]
+            );
+            if ($prev) {
+                $gap = time() - strtotime($prev . ' UTC');
+                $isOld = $gap >= self::OLD_OPEN_GAP;
+                $gapDays = $gap / 86400;
+            }
+        }
         if ($isOld && $mode !== 'off' && !empty($user['notify_old_opens'])) {
             $push = true;
         }
+        $oldLine = $isOld
+            ? 'Išsiųsta: ' . fmt_dt($email['created_at']) . ' (prieš ' . (int)round($ageDays) . ' d.)'
+                . ($gapDays !== null ? ', ankstesnis atidarymas prieš ' . self::daysText($gapDays) : ', anksčiau neatidarytas') . "\n"
+            : '';
+        $payload = ['email_uid' => $email['uid'], 'subject' => $email['subject'], 'open_count' => $count, 'old_email' => $isOld ? 1 : 0, 'age_days' => round($ageDays, 2)];
+
+        // Galimai persiųstas (kaip Mailsuite/Mailtrack): ką tik pasiektas požymis –
+        // vienas pranešimas vietoj įprasto „atidarytas“ (jame ir atidarymo info).
+        if ($fwdReason !== '') {
+            Logger::info('Laiškas galimai persiųstas', ['email' => $email['id'], 'reason' => $fwdReason]);
+            Notifier::notify(
+                $user,
+                'forward',
+                "↪ Galimai persiųstas ($count k.): " . $subj,
+                $fwdReason . "\n" . ($to ? "Gavėjas: $to\n" : '') . $oldLine . $where,
+                (int)$email['id'],
+                null,
+                $mode !== 'off' && (!isset($user['notify_forwards']) || !empty($user['notify_forwards'])),
+                $payload + ['forwarded' => 1, 'forward_reason' => $fwdReason]
+            );
+            return;
+        }
+
         $title = $isOld
             ? '🔔 Atidarytas senas laiškas (prieš ' . (int)round($ageDays) . ' d. siųstas): ' . $subj
             : ($count === 1 ? '✓✓ Atidarytas: ' : "✓✓ Atidarytas ($count k.): ") . $subj;
-        $bodyTxt = ($to ? "Gavėjas: $to\n" : '')
-            . ($isOld ? 'Išsiųsta: ' . fmt_dt($email['created_at']) . ' (prieš ' . (int)round($ageDays) . " d.)\n" : '')
-            . $where;
+        $bodyTxt = ($to ? "Gavėjas: $to\n" : '') . $oldLine . $where;
 
-        Notifier::notify(
-            $user,
-            'open',
-            $title,
-            $bodyTxt,
-            (int)$email['id'],
-            null,
-            $push,
-            ['email_uid' => $email['uid'], 'subject' => $email['subject'], 'open_count' => $count, 'old_email' => $isOld ? 1 : 0, 'age_days' => round($ageDays, 2)]
+        Notifier::notify($user, 'open', $title, $bodyTxt, (int)$email['id'], null, $push, $payload);
+    }
+
+    private static function daysText(float $days): string
+    {
+        if ($days < 1) {
+            return max(1, (int)round($days * 24)) . ' val.';
+        }
+        return (int)round($days) . ' d.';
+    }
+
+    /**
+     * Ar laiškas galimai persiųstas. Tikro persiuntimo pamatyti neįmanoma (pikselis
+     * persiųstame laiške tas pats), todėl – kaip Mailsuite/Mailtrack – spėjam iš:
+     *  1) daug tikrų atidarymų (riba vienam gavėjui × gavėjų sk.);
+     *  2) atidarymų iš daugiau šalių / vietų nei yra gavėjų (tik ne per proxy –
+     *     Gmail/Yahoo proxy vietos neatskleidžia).
+     * Neskaičiuojam ignoruotų ir „galimo prefetch“ atidarymų.
+     * @return string priežastis arba '' jei požymių nėra
+     */
+    public static function forwardReason(array $user, array $email): string
+    {
+        $recips = json_decode((string)$email['recipients'], true);
+        $n = max(1, is_array($recips) ? count(array_filter($recips)) : 1);
+        $real = (int)DB::value("SELECT COUNT(*) FROM opens WHERE email_id = ? AND ignored = 0 AND ignore_reason = ''", [$email['id']]);
+
+        $perRecipient = (int)($user['forward_opens'] ?? 5);
+        if ($perRecipient > 0 && $real >= $perRecipient * $n) {
+            return "Atidarytas daug kartų ($real k." . ($n > 1 ? ", $n gavėjams" : '') . ') – tikėtina, kad persiųstas';
+        }
+
+        $locs = DB::all(
+            "SELECT DISTINCT country, city FROM opens WHERE email_id = ? AND ignored = 0 AND ignore_reason = '' AND proxy = '' AND country <> ''",
+            [$email['id']]
         );
+        $countries = array_values(array_unique(array_column($locs, 'country')));
+        if (count($countries) > $n) {
+            return 'Atidarytas iš ' . count($countries) . ' skirtingų šalių (' . implode(', ', array_slice($countries, 0, 5)) . ') – tikėtina, kad persiųstas';
+        }
+        if (count($locs) >= $n + 2) {
+            $names = array_map(fn($l) => $l['city'] !== '' ? $l['city'] : $l['country'], $locs);
+            return 'Atidarytas iš ' . count($locs) . ' skirtingų vietų (' . implode(', ', array_slice($names, 0, 5)) . ') – tikėtina, kad persiųstas';
+        }
+        return '';
     }
 
     /** Nuorodos paspaudimas. Grąžina URL nukreipimui arba null. */
@@ -254,7 +325,11 @@ final class Tracker
         }
     }
 
-    public static function recount(int $emailId): void
+    /**
+     * Perskaičiuoja laiško suvestinę ir „galimai persiųstas“ žymę.
+     * @return string ką tik atsiradusio „galimai persiųstas“ priežastis (pranešimui) arba ''
+     */
+    public static function recount(int $emailId): string
     {
         $o = DB::row('SELECT COUNT(*) c, MIN(opened_at) f, MAX(opened_at) l FROM opens WHERE email_id = ? AND ignored = 0', [$emailId]);
         $c = (int)DB::value('SELECT COUNT(*) FROM clicks WHERE email_id = ? AND ignored = 0', [$emailId]);
@@ -265,6 +340,28 @@ final class Tracker
             'click_count' => $c,
         ], 'id = :id', ['id' => $emailId]);
         DB::query('UPDATE links SET click_count = (SELECT COUNT(*) FROM clicks WHERE clicks.link_id = links.id AND clicks.ignored = 0) WHERE email_id = ?', [$emailId]);
+
+        // Žymė pasišalina pati, jei atidarymai vėliau atšaukti (sava peržiūra, rankinis ignoravimas).
+        $email = DB::row('SELECT * FROM emails WHERE id = ?', [$emailId]);
+        $user = $email ? Auth::userById((int)$email['user_id']) : null;
+        if (!$email || !$user) {
+            return '';
+        }
+        $reason = self::forwardReason($user, $email);
+        if ($reason === '') {
+            if ($email['forward_at'] !== null) {
+                DB::update('emails', ['forward_at' => null, 'forward_reason' => ''], 'id = :id', ['id' => $emailId]);
+            }
+            return '';
+        }
+        if ($email['forward_at'] === null) {
+            DB::update('emails', ['forward_at' => now(), 'forward_reason' => $reason], 'id = :id', ['id' => $emailId]);
+            return $reason;
+        }
+        if ($reason !== $email['forward_reason']) {
+            DB::update('emails', ['forward_reason' => $reason], 'id = :id', ['id' => $emailId]);
+        }
+        return '';
     }
 
     public static function recordDocView(array $doc): void

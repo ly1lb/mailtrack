@@ -5,10 +5,10 @@ $openedN = (int)($stats['opened'] ?? 0);
 $clickedN = (int)($stats['clicked'] ?? 0);
 $openRate = $sent ? round(100 * $openedN / $sent) : 0;
 $clickRate = $sent ? round(100 * $clickedN / $sent) : 0;
-$chips = ['all' => 'Visi', 'opened' => 'Atidaryti', 'unopened' => 'Neatidaryti', 'clicked' => 'Su paspaudimais', 'reminders' => 'Priminimai', 'archived' => 'Archyvas'];
+$chips = ['all' => 'Visi', 'opened' => 'Atidaryti', 'unopened' => 'Neatidaryti', 'clicked' => 'Su paspaudimais', 'forwarded' => 'Galimai persiųsti', 'reminders' => 'Priminimai', 'archived' => 'Archyvas'];
 $maxDay = max(1, max($daily));
-$icons = ['open' => '👁', 'click' => '🔗', 'doc' => '📄', 'reminder' => '⏰'];
-$verbs = ['open' => 'atidarė laišką', 'click' => 'paspaudė nuorodą', 'doc' => 'peržiūrėjo dokumentą', 'reminder' => 'priminimas'];
+$icons = ['open' => '👁', 'forward' => '↪', 'click' => '🔗', 'doc' => '📄', 'reminder' => '⏰'];
+$verbs = ['open' => 'atidarė laišką', 'forward' => 'galimai persiuntė laišką', 'click' => 'paspaudė nuorodą', 'doc' => 'peržiūrėjo dokumentą', 'reminder' => 'priminimas'];
 
 // Žiedinė diagrama (gauge): procentas viename hue prieš neutralų taką.
 function donut(int $pct, string $var, string $centerTop, string $centerSub): string
@@ -68,7 +68,7 @@ function donut(int $pct, string $var, string $centerTop, string $centerSub): str
         $isOld = str_contains($n['title'], 'senas laiškas');
         // pakartotinių atidarymų skaičius iš antraštės „(N k.)"
         $times = '';
-        if ($n['type'] === 'open' && preg_match('/\((\d+)\s*k\.\)/u', $n['title'], $mm)) $times = $mm[1];
+        if (in_array($n['type'], ['open', 'forward'], true) && preg_match('/\((\d+)\s*k\.\)/u', $n['title'], $mm)) $times = $mm[1];
         $href = $n['email_id'] ? base_url('email/' . $n['email_id']) : base_url('documents');
       ?>
         <li>
@@ -84,6 +84,7 @@ function donut(int $pct, string $var, string $centerTop, string $centerSub): str
               <span class="w"><?= e(ago($n['created_at'])) ?></span>
               <?php if ($times !== '' && (int)$times > 1): ?><span class="badge times"><?= (int)$times ?> k.</span><?php endif; ?>
               <?php if ($isOld): ?><span class="badge old">senas laiškas</span><?php endif; ?>
+              <?php if ($n['type'] === 'forward'): ?><span class="badge fwd">galimai persiųstas</span><?php endif; ?>
               <?php
                 $b1 = trim(explode("\n", (string)$n['body'])[0] ?? '');
                 if ($b1 !== '' && stripos($b1, 'Gavėjas') !== 0): ?>
@@ -145,6 +146,7 @@ function donut(int $pct, string $var, string $centerTop, string $centerSub): str
       <td><span class="status <?= $opened ? 's1' : 's0' ?>" title="<?= $opened ? 'Atidarytas' : 'Išsiųstas, dar neatidarytas' ?>"><?= $opened ? '✓✓' : '✓' ?></span></td>
       <td>
         <a class="subject" href="<?= e(base_url('email/' . $em['id'])) ?>"><?= e($em['subject'] !== '' ? $em['subject'] : '(be temos)') ?></a>
+        <?php if (!empty($em['forward_at'])): ?> <span class="badge fwd" title="<?= e($em['forward_reason']) ?>">↪ galimai persiųstas</span><?php endif; ?>
         <?php if ($em['reminder_at'] && !$em['reminder_sent']): ?> <span class="badge warn">⏰ <?= e(fmt_dt($em['reminder_at'], 'm-d H:i')) ?></span><?php endif; ?>
         <div class="recip"><?= e(recipients_text($em['recipients']) ?: '—') ?></div>
       </td>
