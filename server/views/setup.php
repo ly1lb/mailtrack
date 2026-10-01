@@ -35,9 +35,11 @@ $base = rtrim((string)cfg('base_url'), '/');
     <li>Projekto nustatymuose (⚙) pažymėkite <b>Show "appsscript.json" manifest file</b>.</li>
     <li>Įklijuokite <a href="<?= e(base_url('downloads/gmail-addon/Code.gs')) ?>">Code.gs</a> ir <a href="<?= e(base_url('downloads/gmail-addon/appsscript.json')) ?>">appsscript.json</a> turinį.
       <b>appsscript.json</b> faile pakeiskite <code>https://track.example.com</code> į <code><?= e($base) ?></code> (2 vietose).</li>
-    <li><b>Deploy → Test deployments → Application: Gmail → Install</b>. Suteikite leidimus.</li>
-    <li>Atidarykite Gmail kompiuteryje, dešiniajame šoniniame skydelyje paspauskite priedo ikoną → įveskite serverio adresą ir API raktą.</li>
-    <li>Dabar telefone Gmail programėlėje: rašydami laišką spauskite <b>⋮</b> arba priedų juostą apačioje → <b>MailTrack Pro</b> → <b>Įterpti sekimą</b>. Taip pat galite įterpti <b>sekamą nuorodą</b>.</li>
+    <li><b>Deploy → Test deployments → Install</b>. Kodo pakeitimai įsigalioja juos išsaugojus (Ctrl+S) – iš naujo diegti nereikia.</li>
+    <li>Atidarykite Gmail kompiuteryje, dešiniajame šoniniame skydelyje paspauskite priedo ikoną → <b>Authorize access</b>.
+      Įspėjime „Google hasn't verified this app“ spauskite <b>Advanced → Go to MailTrack Pro (unsafe) → Allow</b> (tai jūsų pačių skriptas).
+      Tada įveskite serverio adresą ir API raktą → <b>Išsaugoti ir patikrinti</b>.</li>
+    <li>Dabar telefone Gmail programėlėje: rašydami laišką spauskite <b>⋮</b> arba priedų juostą apačioje → <b>MailTrack Pro</b> → <b>Įterpti sekimą</b>, atsidariusioje kortelėje – mygtuką <b>✓✓ Įterpti sekimą</b>. Toje pačioje kortelėje galite įterpti ir <b>sekamą nuorodą</b>.</li>
     <li>Atidarę išsiųstą laišką telefone, priedo kortelėje matysite jo atidarymų statistiką.</li>
   </ol>
   <p class="help">Patarimas: sekimą įterpkite paskutinį, kai tema ir gavėjai jau įvesti – tada jie iškart matysis skydelyje.</p>

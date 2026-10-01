@@ -82,7 +82,8 @@ Skydelis → **Įdiegimas** → atsisiųskite `chrome-extension.zip`, `chrome://
 Skydelis → **Įdiegimas → 📱 Telefonas** turi žingsnius. Trumpai: sukurkite
 Apps Script projektą, įklijuokite `gmail-addon/Code.gs` ir `appsscript.json`
 (pakeitę serverio adresą), *Deploy → Test deployments → Install*. Telefone Gmail
-app'e rašydami laišką spauskite priedą → **Įterpti sekimą**.
+app'e rašydami laišką spauskite priedą → **Įterpti sekimą** → kortelėje mygtukas
+**✓✓ Įterpti sekimą** (ten pat – sekama nuoroda).
 
 ## Pranešimai telefone (push)
 Geriausia – **Telegram**: @BotFather sukurkite botą, raktą įrašykite į `config.php`
