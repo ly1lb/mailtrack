@@ -16,3 +16,4 @@ tests/extension/content-test.js
 tests/extension/sha256.js
 tests/extension/content.css
 tests/extension/shot-*.png
+tests/extension/popup-sim.html

@@ -51,8 +51,8 @@ fs.copyFileSync(path.join(EXT, 'content.css'), path.join(DIR, 'content.css'));
   results.bodyHtml = await page.locator('#body').innerHTML();
 
   // 4b) Ar aptiko svetima sekikli gautame laiske?
-  results.trackedByBadge = await page.locator('.mt-tracked-by').count();
-  results.trackedByText = await page.locator('.mt-tracked-by').first().innerText().catch(() => '(nera)');
+  results.trackedByBadge = await page.locator('.mt-chip.mt-foreign').count();
+  results.trackedByText = await page.locator('.mt-chip.mt-foreign').first().innerText().catch(() => '(nera)');
   // 4c) Ar sablonu mygtukas YRA VIRS laisko teksto (ne apatineje juostoje)?
   results.tplAboveBody = await page.evaluate(() => {
     var bar = document.querySelector('.mt-tplbar');

@@ -78,6 +78,23 @@ Kaip veikia „tikslumo“ premium funkcijos (kaip ir pas Mailtrack):
 Skydelis → **Įdiegimas** → atsisiųskite `chrome-extension.zip`, `chrome://extensions`
 → *Developer mode* → *Load unpacked*. Nustatymuose įveskite serverio adresą ir API raktą.
 
+### Ženklai Gmail'e (plėtinys 1.2)
+
+| Ženklas | Reikšmė |
+|---|---|
+| ✓ pilka | jūsų sekamas laiškas, dar neatidarytas |
+| ✓✓ žalia | jūsų sekamas laiškas atidarytas (spustelėjus – atidarymų istorija) |
+| ↪ oranžinė | galimai persiųstas |
+| 👁 violetinė | **siuntėjas seka jus** (jo laiške yra Mailtrack/Mailsuite/HubSpot ar kt. pikselis) |
+
+- Vienam laiškui gijoje rodoma **viena** juosta; cituotas tekstas (ankstesni laiškai
+  atsakymuose) neskenuojamas, todėl jūsų pačių pikseliai citatose nebežymimi kaip „seka“.
+- 👁 sąraše rodomas tik prie **to paties siuntėjo adreso** (anksčiau – visam domenui,
+  pvz. visiems @gmail.com). Galima išjungti plėtinio nustatymuose.
+- Atsakant į giją, seni mūsų pikseliai pašalinami iš cituoto teksto, o serveris
+  nebeskaičiuoja seno laiško „atidarymo“, kai gavėjas atidaro atsakymą
+  (tai anksčiau pūtė atidarymų skaičių ir klaidingai rodė „galimai persiųstas“).
+
 ## Telefonas – Gmail priedas
 Skydelis → **Įdiegimas → 📱 Telefonas** turi žingsnius. Trumpai: sukurkite
 Apps Script projektą, įklijuokite `gmail-addon/Code.gs` ir `appsscript.json`

@@ -144,6 +144,15 @@ CREATE TABLE IF NOT EXISTS selfviews (
   INDEX idx_sv_email (email_id, created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS email_quotes (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  email_id INT UNSIGNED NOT NULL,
+  quoted_email_id INT UNSIGNED NOT NULL,
+  created_at DATETIME NOT NULL,
+  INDEX idx_eq_quoted (quoted_email_id),
+  INDEX idx_eq_email (email_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS user_ips (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   user_id INT UNSIGNED NOT NULL,

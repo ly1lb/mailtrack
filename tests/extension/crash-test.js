@@ -52,12 +52,12 @@ fs.writeFileSync(path.join(DIR,'crash-sim.html'),html);
   await p.waitForTimeout(1500);
   const r=await p.evaluate(()=>({
     uncaughtCrash: null,
-    trackedByBadge: document.querySelectorAll('.mt-tracked-by').length,
-    trackedByText: (document.querySelector('.mt-tracked-by')||{}).textContent||'(nera)',
-    openBanner: document.querySelectorAll('.mt-banner').length,
-    openBannerText: (document.querySelector('.mt-banner')||{}).textContent||'(nera)',
+    trackedByBadge: document.querySelectorAll('.mt-chip.mt-foreign').length,
+    trackedByText: (document.querySelector('.mt-chip.mt-foreign')||{}).textContent||'(nera)',
+    openBanner: document.querySelectorAll('.mt-chip.mt-own').length,
+    openBannerText: (document.querySelector('.mt-chip.mt-own')||{}).textContent||'(nera)',
     fabExists: document.querySelectorAll('.mt-fab').length,
-    listBadge: document.querySelectorAll('.mt-list-badge').length,
+    listBadge: document.querySelectorAll('.mt-marks .mt-ck').length,
     tplButton: document.querySelectorAll('.mt-tpl').length
   }));
   console.log(JSON.stringify({...r, pageErrors: errs}, null, 2));

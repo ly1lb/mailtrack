@@ -152,6 +152,15 @@ CREATE TABLE IF NOT EXISTS selfviews (
 
 CREATE INDEX IF NOT EXISTS idx_sv_email ON selfviews (email_id, created_at);
 
+CREATE TABLE IF NOT EXISTS email_quotes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  email_id INT NOT NULL,
+  quoted_email_id INT NOT NULL,
+  created_at DATETIME NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_eq_quoted ON email_quotes (quoted_email_id);
+
 CREATE TABLE IF NOT EXISTS user_ips (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INT NOT NULL,

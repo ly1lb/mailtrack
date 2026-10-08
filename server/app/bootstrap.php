@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 define('APP_ROOT', dirname(__DIR__));
-define('APP_VERSION', '1.0.4');
+define('APP_VERSION', '1.0.5');
 
 require __DIR__ . '/Logger.php';
 require __DIR__ . '/DB.php';
@@ -55,6 +55,22 @@ try {
         created_at DATETIME NOT NULL,
         updated_at DATETIME NULL
     )");
+
+    // Atsakymų citatos: naujas laiškas (email_id) cituoja seną (quoted_email_id).
+    // Kai gavėjas atidaro atsakymą, Gmail užkrauna ir cituotą seną pikselį – tokio
+    // „atidarymo“ senam laiškui neskaičiuojam.
+    if (DB::driver() === 'sqlite') {
+        DB::pdo()->exec("CREATE TABLE IF NOT EXISTS email_quotes (
+            id $auto, email_id INT NOT NULL, quoted_email_id INT NOT NULL, created_at DATETIME NOT NULL
+        )");
+        DB::pdo()->exec('CREATE INDEX IF NOT EXISTS idx_eq_quoted ON email_quotes (quoted_email_id)');
+    } elseif (!DB::all("SHOW TABLES LIKE 'email_quotes'")) {
+        DB::pdo()->exec("CREATE TABLE email_quotes (
+            id $auto, email_id INT UNSIGNED NOT NULL, quoted_email_id INT UNSIGNED NOT NULL, created_at DATETIME NOT NULL,
+            INDEX idx_eq_quoted (quoted_email_id), INDEX idx_eq_email (email_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+        Logger::info('Migracija: sukurta email_quotes');
+    }
 
     // Naujos users stulpeliai esamiems diegimams
     $cols = [];

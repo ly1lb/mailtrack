@@ -7,7 +7,7 @@ $openRate = $sent ? round(100 * $openedN / $sent) : 0;
 $clickRate = $sent ? round(100 * $clickedN / $sent) : 0;
 $chips = ['all' => 'Visi', 'opened' => 'Atidaryti', 'unopened' => 'Neatidaryti', 'clicked' => 'Su paspaudimais', 'forwarded' => 'Galimai persiųsti', 'reminders' => 'Priminimai', 'archived' => 'Archyvas'];
 $maxDay = max(1, max($daily));
-$icons = ['open' => '👁', 'forward' => '↪', 'click' => '🔗', 'doc' => '📄', 'reminder' => '⏰'];
+$icons = ['open' => '✓✓', 'forward' => '↪', 'click' => '🔗', 'doc' => '📄', 'reminder' => '⏰'];
 $verbs = ['open' => 'atidarė laišką', 'forward' => 'galimai persiuntė laišką', 'click' => 'paspaudė nuorodą', 'doc' => 'peržiūrėjo dokumentą', 'reminder' => 'priminimas'];
 
 // Žiedinė diagrama (gauge): procentas viename hue prieš neutralų taką.

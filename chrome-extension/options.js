@@ -5,13 +5,14 @@ var msg = $('msg');
 function show(type, text) { msg.className = 'msg ' + type; msg.textContent = text; }
 
 function load() {
-  chrome.storage.sync.get({ serverUrl: '', apiKey: '', trackByDefault: true, trackLinks: true, desktopNotify: true, showTplButton: true }, function (c) {
+  chrome.storage.sync.get({ serverUrl: '', apiKey: '', trackByDefault: true, trackLinks: true, desktopNotify: true, showTplButton: true, listForeign: true }, function (c) {
     $('serverUrl').value = c.serverUrl;
     $('apiKey').value = c.apiKey;
     $('trackByDefault').checked = c.trackByDefault;
     $('trackLinks').checked = c.trackLinks;
     $('desktopNotify').checked = c.desktopNotify;
     $('showTplButton').checked = c.showTplButton;
+    $('listForeign').checked = c.listForeign;
   });
 }
 
@@ -38,7 +39,8 @@ function save(testOnly) {
       trackByDefault: $('trackByDefault').checked,
       trackLinks: $('trackLinks').checked,
       desktopNotify: $('desktopNotify').checked,
-      showTplButton: $('showTplButton').checked
+      showTplButton: $('showTplButton').checked,
+      listForeign: $('listForeign').checked
     };
     if (testOnly) {
       show('ok', 'Ryšys veikia ✓ Prisijungta kaip ' + store.userEmail);

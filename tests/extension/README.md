@@ -20,3 +20,14 @@ node run-test.js
 
 Laukiamas rezultatas: `toggles: 1`, `tplButtons: 1`, `menuVisible: 1`,
 `menuItems: 2`, užpildyta `subject`, tuščias `errors`.
+
+## thread-test.js – ženklai gijoje ir sąraše
+
+```bash
+NODE_PATH=$(npm root -g) node thread-test.js
+```
+
+Tikrina: viena juosta laiškui (be dublikatų), cituoti pikseliai neskaičiuojami kaip
+„seka“, 👁 tik tiksliam siuntėjo adresui, ✓/✓✓ sąraše tik kai sutampa tema IR gavėjas,
+nėra begalinio DOM perrašymo ciklo, atsakant pašalinamas senas pikselis iš citatos.
+Laukiamas rezultatas: `VISKAS OK`.

@@ -6,6 +6,8 @@ final class Tracker
     public const DUPLICATE_WINDOW = 30;  // sek. – pasikartojantys užklausimai iš to paties IP+UA
     public const PROXY_DEDUP_WINDOW = 180; // sek. (3 min) – sujungiam Google prefetch + iškart sekantį render,
                                            // bet tikrus vėlesnius pakartotinius atidarymus vis tiek skaičiuojam
+    public const QUOTE_WINDOW = 120;       // sek. – seno laiško „atidarymas“ šiame lange apie atsakymo atidarymą
+                                           // = cituoto pikselio užkrovimas, o ne tikras atidarymas
     public const OLD_OPEN_GAP = 43200;     // sek. (12 val.) – „senas laiškas atidarytas“ pranešam tik po tokios
                                            // pertraukos nuo ankstesnio atidarymo (kitaip skaitant 5 k. iš eilės – 5 pranešimai)
 
@@ -49,6 +51,16 @@ final class Tracker
                 'created_at' => now(),
             ]);
             Logger::info('Užregistruotas sekamas laiškas', ['id' => $id, 'uid' => $uid, 'source' => $source]);
+        }
+
+        // Laiškai, kuriuos šis cituoja (atsakymas gijoje) – žr. QUOTE_WINDOW
+        foreach (array_slice((array)($in['quotes'] ?? []), 0, 20) as $qUid) {
+            $qUid = (string)$qUid;
+            if ($qUid === '' || $qUid === $uid || !valid_uid($qUid)) continue;
+            $qid = (int)DB::value('SELECT id FROM emails WHERE uid = ? AND user_id = ?', [$qUid, $user['id']]);
+            if ($qid && $qid !== $id && !DB::value('SELECT COUNT(*) FROM email_quotes WHERE email_id = ? AND quoted_email_id = ?', [$id, $qid])) {
+                DB::insert('email_quotes', ['email_id' => $id, 'quoted_email_id' => $qid, 'created_at' => now()]);
+            }
         }
 
         foreach ((array)($in['links'] ?? []) as $l) {
@@ -115,6 +127,8 @@ final class Tracker
             'ignored' => $cl['ignored'],
             'ignore_reason' => $cl['reason'],
         ]);
+        // Šis laiškas gali cituoti senesnius – jų pikseliai užsikrovė kartu (ne tikri atidarymai)
+        self::suppressQuotedOpens((int)$email['id']);
         if ($cl['ignored']) {
             Logger::debug('Atidarymas ignoruotas', ['email' => $email['id'], 'reason' => $cl['reason']]);
             return;
@@ -203,6 +217,33 @@ final class Tracker
 
         Notifier::notify($user, 'open', $title, $bodyTxt, (int)$email['id'], null, $push, $payload);
     }
+
+    /**
+     * Atsakymo (email_id) atidarymas: Gmail kartu užkrauna ir cituotų senų laiškų
+     * pikselius. Tų laiškų atidarymus, įvykusius ±QUOTE_WINDOW, atšaukiam.
+     */
+    private static function suppressQuotedOpens(int $emailId): void
+    {
+        $parents = DB::all('SELECT DISTINCT quoted_email_id FROM email_quotes WHERE email_id = ?', [$emailId]);
+        if (!$parents) {
+            return;
+        }
+        $since = gmdate('Y-m-d H:i:s', time() - self::QUOTE_WINDOW);
+        foreach ($parents as $p) {
+            $pid = (int)$p['quoted_email_id'];
+            $n = DB::query(
+                "UPDATE opens SET ignored = 1, ignore_reason = ? WHERE email_id = ? AND ignored = 0 AND opened_at >= ?",
+                [self::QUOTED_REASON, $pid, $since]
+            )->rowCount();
+            if ($n > 0) {
+                self::recount($pid);
+                DB::query("DELETE FROM notifications WHERE email_id = ? AND type IN ('open','forward') AND created_at >= ?", [$pid, $since]);
+                Logger::info('Cituoto pikselio atidarymai atšaukti', ['email' => $pid, 'reply' => $emailId, 'count' => $n]);
+            }
+        }
+    }
+
+    public const QUOTED_REASON = 'Cituotas atsakyme (atidarytas atsakymas, ne šis laiškas)';
 
     private static function daysText(float $days): string
     {
@@ -413,6 +454,15 @@ final class Tracker
         }
         if (self::isOwnIp((int)$user['id'], $ip)) {
             return $drop('Jūsų IP adresas');
+        }
+        if ($table === 'opens') {
+            $replyOpen = DB::value(
+                'SELECT COUNT(*) FROM opens o JOIN email_quotes q ON q.email_id = o.email_id WHERE q.quoted_email_id = ? AND o.opened_at >= ?',
+                [$email['id'], gmdate('Y-m-d H:i:s', time() - self::QUOTE_WINDOW)]
+            );
+            if ($replyOpen) {
+                return $drop(self::QUOTED_REASON);
+            }
         }
         if ($p['bot']) {
             return $drop('Botas / saugumo skeneris');

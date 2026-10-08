@@ -1,0 +1,79 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Gauti laiškai - lukas@gmail.com - Gmail</title></head><body>
+<!-- Atidaryta gija: 3 laiškai. Imituoja realų Gmail atvejį iš ekrano nuotraukų. -->
+<h2 class="hP">Fotosesija</h2>
+<div role="list" id="thread">
+  <!-- 1) MANO laiškas: mūsų pikselis + mano paties Mailsuite pikselis (naudoju abu) -->
+  <div class="adn" data-message-id="m1"><div class="gs">
+    <span class="gD" email="lukas@gmail.com">Lukas</span> <span class="g2" email="egle@gmail.com">Egle</span>
+    <div><div class="a3s" id="msgMine"><div dir="ltr">Siunčiu pasiūlymą</div>
+      <img src="https://ci3.googleusercontent.com/meips/AAA=s0-d-e1-ft#https://track.test/o/OLDUID12345678.gif" width="1" height="1">
+      <img src="https://ci3.googleusercontent.com/meips/BBB=s0-d-e1-ft#https://mailtrack.io/trace/mail/xyz.png" width="0" height="0">
+    </div></div>
+  </div></div>
+  <!-- 2) Eglės atsakymas: JOKIO sekiklio, bet citatoje mano pikseliai -->
+  <div class="adn" data-message-id="m2"><div class="gs">
+    <span class="gD" email="egle@gmail.com">Egle</span> <span class="g2" email="lukas@gmail.com">aš</span>
+    <div><div class="a3s" id="msgEgle"><div dir="ltr">Ačiū, gavau</div>
+      <div class="gmail_quote"><div class="gmail_attr">On Mon, Lukas wrote:</div><blockquote class="gmail_quote">
+        Siunčiu pasiūlymą
+        <img src="https://ci3.googleusercontent.com/meips/AAA=s0-d-e1-ft#https://track.test/o/OLDUID12345678.gif" width="1" height="1">
+        <img src="https://ci3.googleusercontent.com/meips/BBB=s0-d-e1-ft#https://mailtrack.io/trace/mail/xyz.png" width="0" height="0">
+      </blockquote></div>
+      <img src="https://ci3.googleusercontent.com/meips/CCC=s0-d-e1-ft#https://egle.lt/logo.gif" width="120" height="40">
+    </div></div>
+  </div></div>
+  <!-- 3) Aistės atsakymas: JI pati naudoja Mailtrack (ne citatoje) + citatoje mano pikselis -->
+  <div class="adn" data-message-id="m3"><div class="gs">
+    <span class="gD" email="aiste@gmail.com">Aistė</span>
+    <div><div class="a3s" id="msgAiste"><div dir="ltr">Ačiū tau, super :)</div>
+      <img src="https://ci3.googleusercontent.com/meips/DDD=s0-d-e1-ft#https://mailtrack.io/trace/mail/aiste.png" width="0" height="0">
+      <div class="gmail_quote"><blockquote>
+        <img src="https://ci3.googleusercontent.com/meips/AAA=s0-d-e1-ft#https://track.test/o/OLDUID12345678.gif" width="1" height="1">
+      </blockquote></div>
+    </div></div>
+  </div></div>
+</div>
+
+<!-- Atsakymo rašymo langas gijos viduje (išskleista citata su senu mūsų pikseliu) -->
+<div class="M9" id="reply">
+  <input name="subjectbox" value="Re: Fotosesija">
+  <span email="egle@gmail.com">Egle</span>
+  <div aria-label="Laiško turinys" contenteditable="true" id="body"><div>Naujas tekstas <a href="https://lukas.lt/kaina">kaina</a></div><div class="gmail_quote"><blockquote class="gmail_quote">Senas <a href="https://senas.lt">senas</a><img src="https://track.test/o/OLDUID12345678.gif" width="1" height="1"></blockquote></div></div>
+  <div role="button" data-tooltip="Siųsti ‪(Ctrl+Enter)‬" id="send">Siųsti</div>
+</div>
+
+<!-- Sąrašas -->
+<table><tbody>
+  <tr class="zA" id="rowEgle"><td><span class="yW"><span email="egle@gmail.com">Egle</span>, <span email="lukas@gmail.com">aš</span></span></td><td><div class="xT"><div class="y6"><span class="bog">Re: Fotosesija</span></div></div></td></tr>
+  <tr class="zA" id="rowOtherSameSubj"><td><span class="yW"><span email="kitas@firma.lt">Kitas</span></span></td><td><div class="xT"><div class="y6"><span class="bog">Fotosesija</span></div></div></td></tr>
+  <tr class="zA" id="rowAiste"><td><span class="yW"><span email="aiste@gmail.com">Aistė</span></span></td><td><div class="xT"><div class="y6"><span class="bog">Kitas reikalas</span></div></div></td></tr>
+  <tr class="zA" id="rowGmailOther"><td><span class="yW"><span email="draugas@gmail.com">Draugas</span></span></td><td><div class="xT"><div class="y6"><span class="bog">Labas</span></div></div></td></tr>
+  <tr class="zA" id="rowUnopened"><td><span class="yW"><span email="petras@imone.lt">Petras</span></span></td><td><div class="xT"><div class="y6"><span class="bog">Sąskaita</span></div></div></td></tr>
+</tbody></table>
+
+<script>
+window.__calls = [];
+var EMAILS = [
+  { uid: 'OLDUID12345678', subject: 'Fotosesija', recipients: 'egle@gmail.com', open_count: 7, click_count: 0, sent_at: '2026-10-01T10:00:00Z', first_open_at: '2026-10-01T11:00:00Z', last_open_at: '2026-10-08T04:44:09Z', forwarded: true, forward_reason: 'Atidarytas daug kartų (7 k.)', dashboard_url: 'https://track.test/email/1' },
+  { uid: 'UNOPENED123456', subject: 'Sąskaita', recipients: 'petras@imone.lt', open_count: 0, click_count: 0, sent_at: '2026-10-07T10:00:00Z', forwarded: false, dashboard_url: 'https://track.test/email/2' }
+];
+window.chrome = { runtime: { lastError: null, getManifest: function () { return { version: '1.0.0' }; },
+  sendMessage: function (msg, cb) { window.__calls.push(msg); setTimeout(function () {
+    if (msg.type === 'config') cb({ ok: true, cfg: { serverUrl: 'https://track.test', apiKey: 'k'.repeat(30), linkSecret: 'abc', trackByDefault: true, trackLinks: true } });
+    else if (msg.type === 'register') { window.__registered = msg.payload; cb({ ok: true }); }
+    else if (msg.type === 'api' && String(msg.path).indexOf('activity') === 0) cb({ ok: true, data: { ok: true, items: [], opens_today: 0, tracked: 2 } });
+    else if (msg.type === 'api' && msg.path === 'emails?limit=200') cb({ ok: true, data: { ok: true, emails: EMAILS } });
+    else if (msg.type === 'api' && String(msg.path).indexOf('emails/') === 0) {
+      var e = EMAILS.filter(function (x) { return 'emails/' + x.uid === msg.path; })[0];
+      cb(e ? { ok: true, data: Object.assign({ ok: true, opens: [{ opened_at: '2026-10-08 04:44:09', proxy: 'Gmail proxy', ignored: 0, ignore_reason: '' }, { opened_at: '2026-10-07 09:00:00', device: 'Kompiuteris', os: 'Windows', city: 'Vilnius', ignored: 0, ignore_reason: '' }] }, e) } : { ok: false });
+    }
+    else cb({ ok: true, data: { ok: true } });
+  }, 5); }, openOptionsPage: function () {}, onMessage: { addListener: function () {} } },
+  storage: { sync: { get: function (d, cb) { cb(d); } }, onChanged: { addListener: function () {} },
+    local: (function () { var store = { trackSenders: { 'gmail.com': 'Mailtrack' } }; window.__store = store;
+      return { get: function (d, cb) { var o = {}; for (var k in d) o[k] = k in store ? store[k] : d[k]; cb(o); },
+               set: function (o, cb) { Object.assign(store, o); cb && cb(); },
+               remove: function (k) { delete store[k]; } }; })() } };
+</script>
+<script src="sha256.js"></script><script src="content-test.js"></script>
+</body></html>

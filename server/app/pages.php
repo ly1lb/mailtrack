@@ -119,6 +119,7 @@ if (preg_match('#^email/(\d+)(?:/([a-z-]+))?$#', $path, $m)) {
                 foreach (['opens', 'clicks', 'links', 'selfviews', 'notifications'] as $t) {
                     DB::query("DELETE FROM $t WHERE email_id = ?", [$email['id']]);
                 }
+                DB::query('DELETE FROM email_quotes WHERE email_id = ? OR quoted_email_id = ?', [$email['id'], $email['id']]);
                 DB::query('DELETE FROM emails WHERE id = ?', [$email['id']]);
                 Logger::info('Laiškas ištrintas', ['email' => $email['id']]);
                 flash('Laiškas ištrintas.');

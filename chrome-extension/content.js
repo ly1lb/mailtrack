@@ -1,9 +1,15 @@
 /* MailTrack Pro – Gmail turinio skriptas.
    1) Rašymo lange prideda VIENĄ "✓✓ Sekti" jungiklį; paspaudus "Siųsti" įterpia
-      sekimo pikselį ir (pasirinktinai) perrašo nuorodas su HMAC parašu.
+      sekimo pikselį, (pasirinktinai) perrašo nuorodas su HMAC parašu ir pašalina
+      SENUS mūsų pikselius iš cituoto teksto (kitaip atsakymas „atidarinėtų“ seną laišką).
    2) Kai TU pats atidarai savo sekamą laišką, praneša serveriui (selfview),
       kad Gmail proxy užkrovimas nebūtų suskaičiuotas kaip gavėjo atidarymas.
-   3) Laiškų sąraše ir atidarytame laiške rodo ✓ / ✓✓ statusą. */
+   3) Ženklai (kaip Mailsuite, bet aiškiau atskirti):
+        ✓  pilka   – jūsų sekamas laiškas, dar neatidarytas
+        ✓✓ žalia   – jūsų sekamas laiškas atidarytas
+        ↪  oranžinė – galimai persiųstas
+        👁 violetinė – SIUNTĖJAS seka jus (jo laiške yra sekimo pikselis)
+      Vienam laiškui – viena juosta, be dublikatų; cituotas tekstas ignoruojamas. */
 (function () {
   'use strict';
   if (!location.hostname.endsWith('mail.google.com')) return;
@@ -11,39 +17,64 @@
   var CFG = null;
   var ready = false;
   var lastComposeState = null;   // paskutinis aptiktas rašymo langas
-  var statusMap = {};        // uid -> {open_count, ...}
-  var subjectIndex = {};     // "subject|recip" -> email (best-effort sąrašui)
+  var subjectIndex = {};     // normalizuota tema -> [laiškai] (naujausi pirmi)
   var lastStatusFetch = 0;
-  var trackSenders = {};     // siuntėjų domenai, kurių laiškuose aptikome sekiklį (rodom tašką sąraše)
+  var trackSenders = {};     // TIKSLŪS siuntėjų adresai, kurių laiškuose aptikome sekiklį
+  var learnedMine = {};      // jūsų adresai (aptikti automatiškai)
+  var statusCache = {};      // uid -> {d: laiško duomenys, t: kada gauta}
 
-  function loadTrackSenders() {
+  // ================= SAUGYKLA =================
+  function loadLocal() {
     try {
-      chrome.storage.local.get({ trackSenders: {} }, function (s) {
+      chrome.storage.local.get({ trackSenders2: {}, myEmails: {} }, function (s) {
         if (chrome.runtime.lastError) return;
-        trackSenders = s.trackSenders || {};
+        trackSenders = s.trackSenders2 || {};
+        learnedMine = s.myEmails || {};
+        mineCache = null;
       });
+      // Senoji versija žymėjo VISĄ domeną (pvz. visus @gmail.com) – dėl to raudoni
+      // taškai buvo beveik prie kiekvieno laiško. Tuos duomenis išmetam.
+      chrome.storage.local.remove('trackSenders');
     } catch (e) {}
   }
-  function rememberTrackSender(domain, label) {
-    if (!domain) return;
-    if (trackSenders[domain]) return;
-    trackSenders[domain] = label || domain;
+  function rememberTrackSender(email, label) {
+    email = String(email || '').toLowerCase();
+    if (!email || isMine(email)) return;
+    if (trackSenders[email] === label) return;
+    trackSenders[email] = label;
     try {
-      // apribojam iki ~800 įrašų, kad neaugtų be galo
       var keys = Object.keys(trackSenders);
-      if (keys.length > 800) { delete trackSenders[keys[0]]; }
-      chrome.storage.local.set({ trackSenders: trackSenders });
+      if (keys.length > 1000) delete trackSenders[keys[0]];
+      chrome.storage.local.set({ trackSenders2: trackSenders });
     } catch (e) {}
-    // ką tik sužinojom – perpiešiam sąrašą, kad iškart atsirastų taškas
     safe('decorateList', decorateList);
   }
-  function domainOf(email) {
-    var at = String(email || '').lastIndexOf('@');
-    if (at === -1) return '';
-    var host = email.slice(at + 1).toLowerCase().trim();
-    var parts = host.split('.');
-    return parts.length >= 2 ? parts.slice(-2).join('.') : host;
+  function rememberMine(email) {
+    email = String(email || '').toLowerCase();
+    if (!email || email.indexOf('@') < 1 || learnedMine[email]) return;
+    learnedMine[email] = 1;
+    mineCache = null;
+    // jei šis adresas buvo klaidingai pažymėtas kaip „sekantis“ – pašalinam
+    if (trackSenders[email]) { delete trackSenders[email]; try { chrome.storage.local.set({ trackSenders2: trackSenders }); } catch (e) {} }
+    try { chrome.storage.local.set({ myEmails: learnedMine }); } catch (e) {}
   }
+
+  /* Jūsų pačių adresai: iš plėtinio nustatymų, Gmail lango pavadinimo,
+     Google paskyros mygtuko ir anksčiau aptiktų (pvz. „aš“ sąraše). */
+  var EMAIL_RE = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
+  var mineCache = null, mineCacheAt = 0;
+  function myEmails() {
+    if (mineCache && Date.now() - mineCacheAt < 5000) return mineCache;
+    var set = {};
+    Object.keys(learnedMine).forEach(function (e) { set[e] = 1; });
+    if (CFG && CFG.userEmail) set[String(CFG.userEmail).toLowerCase()] = 1;
+    (document.title.match(EMAIL_RE) || []).forEach(function (e) { set[e.toLowerCase()] = 1; });
+    var acc = document.querySelector('a[aria-label*="@"][href*="accounts.google.com"], a[aria-label*="@"][href*="SignOutOptions"]');
+    if (acc) ((acc.getAttribute('aria-label') || '').match(EMAIL_RE) || []).forEach(function (e) { set[e.toLowerCase()] = 1; });
+    mineCache = set; mineCacheAt = Date.now();
+    return set;
+  }
+  function isMine(email) { return !!myEmails()[String(email || '').toLowerCase()]; }
 
   function log(message, context) {
     try { chrome.runtime.sendMessage({ type: 'log', message: message, context: context }); } catch (e) {}
@@ -69,7 +100,7 @@
     try {
       chrome.runtime.sendMessage({ type: 'config' }, function (r) {
         if (chrome.runtime.lastError) return;
-        if (r && r.ok) { CFG = r.cfg; ready = !!(CFG.serverUrl && CFG.apiKey); }
+        if (r && r.ok) { CFG = r.cfg; ready = !!(CFG.serverUrl && CFG.apiKey); mineCache = null; }
         cb && cb();
       });
     } catch (e) {}
@@ -87,9 +118,34 @@
   function sig(uid, idx, url) {
     return self.MTCrypto.hmacSha256Hex(CFG.linkSecret, uid + '|' + idx + '|' + url).slice(0, 16);
   }
+  /* Mūsų pikselio atpažinimas – nepriklausomai nuo http/https (Gmail proxy gali pakeisti). */
   function pixelRegex() {
     if (!CFG || !CFG.serverUrl) return null;
-    return new RegExp(CFG.serverUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '/o/([A-Za-z0-9_-]{8,32})');
+    var base = CFG.serverUrl.replace(/^https?:\/\//i, '').replace(/\/+$/, '');
+    return new RegExp('//' + base.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '/o/([A-Za-z0-9_-]{8,32})', 'i');
+  }
+  function imgSrc(img) {
+    return img.getAttribute('src') || img.getAttribute('data-src') || img.getAttribute('data-surl') || '';
+  }
+  function ownUid(img, re) {
+    var raw = imgSrc(img);
+    if (!raw) return null;
+    var m = raw.match(re) || (deproxy(raw) || '').match(re);
+    return m ? m[1] : null;
+  }
+
+  /* Ar elementas yra CITUOTAME tekste (ankstesnis laiškas atsakyme / persiųstame)?
+     Gmail palieka „gmail_quote“ klases; kitų klientų klasės/ID gauna „m_…“ priešdėlį,
+     todėl tikrinam *= / $=. Outlook citata eina po #divRplyFwdMsg / #appendonsend. */
+  var QUOTE_SEL = [
+    'blockquote', '[class*="gmail_quote"]', '[class*="gmail_extra"]', '[class*="yahoo_quoted"]',
+    '[class*="moz-cite-prefix"] ~ *', '[id$="divRplyFwdMsg"]', '[id$="divRplyFwdMsg"] ~ *',
+    '[id$="appendonsend"] ~ *', '[class*="OutlookMessageHeader"]', '[class*="OutlookMessageHeader"] ~ *',
+    '[class*="zmail_extra"]', '[class*="protonmail_quote"]', '.im'
+  ].join(',');
+  function isQuoted(node, root) {
+    var q = node.closest && node.closest(QUOTE_SEL);
+    return !!(q && (!root || root.contains(q)));
   }
 
   // ================= RAŠYMO LANGAS =================
@@ -103,10 +159,12 @@
   function getRecipients(dialog) {
     var set = {};
     dialog.querySelectorAll('[email], [data-hovercard-id]').forEach(function (n) {
+      // nekišam laiško turinio (cituoti adresai) – tik antraštės laukai
+      if (n.closest('[contenteditable="true"]')) return;
       var em = n.getAttribute('email') || n.getAttribute('data-hovercard-id');
       if (em && em.indexOf('@') > 0) set[em.toLowerCase()] = 1;
     });
-    dialog.querySelectorAll('textarea[name="to"], input[name="to"]').forEach(function (n) {
+    dialog.querySelectorAll('textarea[name="to"], input[name="to"], textarea[name="cc"], input[name="cc"], textarea[name="bcc"], input[name="bcc"]').forEach(function (n) {
       (n.value || '').split(/[,;\s]+/).forEach(function (e) { if (e.indexOf('@') > 0) set[e.toLowerCase()] = 1; });
     });
     return Object.keys(set);
@@ -151,10 +209,14 @@
       toggle.className = 'mt-toggle mt-track-toggle';
       toggle.setAttribute('role', 'button');
       toggle.tabIndex = 0;
+      var tick = document.createElement('span'); tick.className = 'mt-tick';
+      var lbl = document.createElement('span'); lbl.className = 'mt-lbl';
+      toggle.appendChild(tick); toggle.appendChild(lbl);
       function paint() {
-        toggle.classList.toggle('on', state.on);
-        toggle.title = ready ? (state.on ? 'Sekimas įjungtas' : 'Sekimas išjungtas šiam laiškui') : 'Sukonfigūruokite plėtinį';
-        toggle.innerHTML = '<span class="mt-tick">' + (state.on ? '✓✓' : '✓') + '</span><span class="mt-lbl">' + (state.on ? 'Sekama' : 'Sekti') + '</span>';
+        toggle.classList.toggle('on', !!state.on);
+        toggle.title = ready ? (state.on ? 'Sekimas įjungtas – spauskite, kad išjungtumėte šiam laiškui' : 'Sekimas išjungtas šiam laiškui') : 'Sukonfigūruokite plėtinį';
+        tick.textContent = state.on ? '✓✓' : '✓';
+        lbl.textContent = state.on ? 'Sekama' : 'Sekti';
       }
       paint();
       // Paspaudimus gaudom globaliai capture fazėje (žr. žemiau) – Gmail savo
@@ -175,39 +237,85 @@
     });
   }
 
+  /* Mūsų sekami laiškai, matomi atidarytoje gijoje (atsakant į ją). Serveris juos
+     susies su nauju laišku: kai gavėjas atidaro atsakymą, Gmail kartu užkrauna ir
+     cituotą seną pikselį – tokio „atidarymo“ senam laiškui neskaičiuosim. */
+  function threadUids(dialog, subject) {
+    var re = pixelRegex();
+    if (!re) return [];
+    // atsakymas gijos viduje (ne atskiras „Naujas laiškas“ langas) arba ta pati tema
+    var inThread = !!(dialog && dialog.closest && !dialog.closest('div[role="dialog"]') && document.querySelector('div.a3s'));
+    var subj = normSubject(subject);
+    var h2 = document.querySelector('h2.hP');
+    var sameSubj = !!(h2 && subj && normSubject(h2.textContent) === subj);
+    if (!inThread && !sameSubj) return [];
+    var set = {};
+    document.querySelectorAll('div.a3s img').forEach(function (img) {
+      var uid = ownUid(img, re);
+      if (uid) set[uid] = 1;
+    });
+    return Object.keys(set);
+  }
+
   var handled = new WeakSet();
   function beforeSend(state) {
     try {
       if (!state || !state.on || !ready) return;
-      var body = state.body;
+      var body = (state.dialog && getBodyEl(state.dialog)) || state.body;
       if (!body || handled.has(body) || body.querySelector('img.mt-px')) return;
       handled.add(body);
 
       var uid = uidGen();
+      var re = pixelRegex();
+      var quotes = {};
+      // 1) Seni MŪSŲ pikseliai cituotame tekste – pašalinam (kitaip kiekvienas atsakymo
+      //    atidarymas būtų užskaitytas ir senam laiškui → klaidingi „atidarymai“ ir
+      //    „galimai persiųstas“).
+      body.querySelectorAll('img').forEach(function (img) {
+        if (img.classList.contains('mt-px')) return;
+        var old = re && ownUid(img, re);
+        if (old) { quotes[old] = 1; img.remove(); }
+      });
+      threadUids(state.dialog, getSubject(state.dialog)).forEach(function (u) { quotes[u] = 1; });
+
+      // 2) Nuorodos – tik NAUJAME tekste (cituotos priklauso senam laiškui)
       var links = [];
       if (CFG.trackLinks) {
         body.querySelectorAll('a[href^="http"]').forEach(function (a, i) {
           var url = a.getAttribute('href');
           if (!url || a.__mt) return;
+          if (isQuoted(a, body)) return;
           if (CFG.serverUrl && url.indexOf(CFG.serverUrl) === 0) return;
           a.setAttribute('href', CFG.serverUrl + '/c/' + uid + '/' + i + '?u=' + b64url(url) + '&s=' + sig(uid, i, url));
           a.__mt = true;
           links.push({ idx: i, url: url });
         });
       }
+
+      // 3) Pikselis – prieš cituotą tekstą (jei jis išskleistas), kad atsakymuose
+      //    jis neatsidurtų citatoje.
       var img = document.createElement('img');
       img.className = 'mt-px';
       img.src = CFG.serverUrl + '/o/' + uid + '.gif';
       img.width = 1; img.height = 1; img.alt = '';
       img.setAttribute('style', 'width:1px;height:1px;border:0;opacity:0;display:block');
-      body.appendChild(img);
+      var q = null;
+      for (var c = body.firstElementChild; c; c = c.nextElementSibling) {
+        if (c.matches && c.matches('[class*="gmail_quote"], blockquote')) { q = c; break; }
+      }
+      if (q) body.insertBefore(img, q); else body.appendChild(img);
 
+      delete quotes[uid];
       chrome.runtime.sendMessage({
         type: 'register',
-        payload: { uid: uid, subject: getSubject(state.dialog), recipients: getRecipients(state.dialog), links: links, source: 'gmail-chrome' }
+        payload: {
+          uid: uid, subject: getSubject(state.dialog), recipients: getRecipients(state.dialog),
+          links: links, quotes: Object.keys(quotes).slice(0, 20), source: 'gmail-chrome'
+        }
       }, function (r) {
         if (chrome.runtime.lastError || !r || !r.ok) log('Nepavyko įtraukti laiško į eilę', { uid: uid });
       });
+      lastStatusFetch = 0; // kad sąrašas iškart pamatytų naują laišką
     } catch (e) {
       log('beforeSend klaida: ' + (e && e.message), { stack: String(e && e.stack).slice(0, 200) });
     }
@@ -216,12 +324,18 @@
   // ================= MINI DASHBOARD GMAIL LANGE (kaip Mailsuite panelė) =================
   var panelEl = null, fabEl = null, panelOpen = false;
 
+  function el(tag, cls, text) {
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text != null) n.textContent = text;
+    return n;
+  }
+
   function ensureFab() {
     if (fabEl && document.body.contains(fabEl)) return;
-    fabEl = document.createElement('div');
-    fabEl.className = 'mt-fab';
+    fabEl = el('div', 'mt-fab');
     fabEl.title = 'MailTrack Pro – veikla';
-    fabEl.innerHTML = '<span class="mt-fab-tick">✓✓</span>';
+    fabEl.appendChild(el('span', 'mt-fab-tick', '✓✓'));
     // click'ą tvarko globalus capture klausytojas (installClickCapture)
     document.body.appendChild(fabEl);
   }
@@ -230,81 +344,112 @@
     if (!panelEl) buildPanel();
     panelOpen = !panelOpen;
     panelEl.classList.toggle('open', panelOpen);
-    if (panelOpen) refreshPanel();
+    if (panelOpen) { refreshPanel(); if (fabEl) fabEl.classList.remove('pulse'); }
   }
 
   function buildPanel() {
-    panelEl = document.createElement('div');
-    panelEl.className = 'mt-panel';
-    panelEl.innerHTML =
-      '<div class="mt-panel-head">' +
-        '<span class="mt-panel-title"><span class="mt-tickg">✓✓</span> MailTrack Pro</span>' +
-        '<span class="mt-panel-actions"><a class="mt-panel-dash" target="_blank">Skydelis ↗</a>' +
-        '<span class="mt-panel-close" title="Uždaryti">✕</span></span>' +
-      '</div>' +
-      '<div class="mt-panel-stats">' +
-        '<div class="mt-stat"><div class="n" id="mt-s-today">–</div><div class="l">Atidarymai šiandien</div></div>' +
-        '<div class="mt-stat"><div class="n" id="mt-s-tracked">–</div><div class="l">Sekami laiškai</div></div>' +
-      '</div>' +
-      '<div class="mt-panel-sub">Naujausia veikla</div>' +
-      '<div class="mt-panel-feed" id="mt-panel-feed"><div class="mt-empty">Kraunama…</div></div>';
+    panelEl = el('div', 'mt-panel');
+    var head = el('div', 'mt-panel-head');
+    var title = el('span', 'mt-panel-title');
+    title.appendChild(el('span', 'mt-tickg', '✓✓'));
+    title.appendChild(document.createTextNode(' MailTrack Pro'));
+    var acts = el('span', 'mt-panel-actions');
+    var dash = el('a', 'mt-panel-dash', 'Skydelis ↗'); dash.target = '_blank';
+    if (CFG && CFG.serverUrl) dash.href = CFG.serverUrl;
+    var close = el('span', 'mt-panel-close', '✕'); close.title = 'Uždaryti';
+    acts.appendChild(dash); acts.appendChild(close);
+    head.appendChild(title); head.appendChild(acts);
+    var stats = el('div', 'mt-panel-stats');
+    [['mt-s-today', 'Atidarymai šiandien'], ['mt-s-tracked', 'Sekami laiškai']].forEach(function (s) {
+      var st = el('div', 'mt-stat'); var n = el('div', 'n', '–'); n.id = s[0];
+      st.appendChild(n); st.appendChild(el('div', 'l', s[1])); stats.appendChild(st);
+    });
+    var legend = el('div', 'mt-panel-legend');
+    [['mt-ck', '✓', 'išsiųsta, neatidaryta'], ['mt-ck on', '✓✓', 'atidaryta'], ['mt-fw', '↪', 'galimai persiųsta']].forEach(function (l) {
+      var it = el('span', 'mt-lg'); it.appendChild(el('span', l[0], l[1])); it.appendChild(document.createTextNode(' ' + l[2])); legend.appendChild(it);
+    });
+    var lgEye = el('span', 'mt-lg');
+    var eyeW = el('span', 'mt-eye-wrap'); eyeW.appendChild(eyeIcon());
+    lgEye.appendChild(eyeW); lgEye.appendChild(document.createTextNode(' siuntėjas seka jus'));
+    legend.appendChild(lgEye);
+    var feed = el('div', 'mt-panel-feed'); feed.id = 'mt-panel-feed';
+    feed.appendChild(el('div', 'mt-empty', 'Kraunama…'));
+    panelEl.appendChild(head); panelEl.appendChild(stats); panelEl.appendChild(legend);
+    panelEl.appendChild(el('div', 'mt-panel-sub', 'Naujausia veikla'));
+    panelEl.appendChild(feed);
     document.body.appendChild(panelEl);
-    panelEl.querySelector('.mt-panel-close').addEventListener('click', togglePanel);
-    if (CFG && CFG.serverUrl) panelEl.querySelector('.mt-panel-dash').href = CFG.serverUrl;
+    close.addEventListener('click', togglePanel);
   }
 
-  function agoTxt(iso) {
+  function parseTs(s) {
+    if (!s) return null;
+    s = String(s);
+    // API grąžina ISO su Z; atidarymų sąraše – „Y-m-d H:i:s“ UTC
+    if (/^\d{4}-\d\d-\d\d \d\d:\d\d(:\d\d)?$/.test(s)) s = s.replace(' ', 'T') + 'Z';
+    var d = new Date(s);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  function fmtShort(iso) {
+    var dt = parseTs(iso);
+    if (!dt) return String(iso || '–');
     try {
-      var d = (Date.now() - new Date(iso).getTime()) / 1000;
-      if (d < 60) return 'ką tik';
-      if (d < 3600) return 'prieš ' + Math.floor(d / 60) + ' min.';
-      if (d < 86400) return 'prieš ' + Math.floor(d / 3600) + ' val.';
-      return 'prieš ' + Math.floor(d / 86400) + ' d.';
-    } catch (e) { return ''; }
+      return dt.toLocaleString('lt-LT', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+    } catch (e) { return dt.toLocaleString(); }
+  }
+  function agoTxt(iso) {
+    var dt = parseTs(iso);
+    if (!dt) return '';
+    var d = (Date.now() - dt.getTime()) / 1000;
+    if (d < 60) return 'ką tik';
+    if (d < 3600) return 'prieš ' + Math.floor(d / 60) + ' min.';
+    if (d < 86400) return 'prieš ' + Math.floor(d / 3600) + ' val.';
+    if (d < 86400 * 30) return 'prieš ' + Math.floor(d / 86400) + ' d.';
+    return fmtShort(iso);
   }
   function iconFor(type) {
-    return type === 'open' ? '👁' : type === 'click' ? '🔗' : type === 'doc' ? '📄' : type === 'reminder' ? '⏰' : '✉️';
+    return type === 'open' ? '✓✓' : type === 'forward' ? '↪' : type === 'click' ? '🔗' : type === 'doc' ? '📄' : type === 'reminder' ? '⏰' : '✉️';
   }
 
   function refreshPanel() {
     if (!panelEl) return;
     apiGet('activity?limit=25', function (d) {
       var feed = panelEl.querySelector('#mt-panel-feed');
-      if (!d) { feed.innerHTML = '<div class="mt-empty">Nepavyko gauti veiklos. Patikrinkite plėtinio nustatymus.</div>'; return; }
+      feed.textContent = '';
+      if (!d) { feed.appendChild(el('div', 'mt-empty', 'Nepavyko gauti veiklos. Patikrinkite plėtinio nustatymus.')); return; }
       panelEl.querySelector('#mt-s-today').textContent = d.opens_today != null ? d.opens_today : '–';
       panelEl.querySelector('#mt-s-tracked').textContent = d.tracked != null ? d.tracked : '–';
-      if (!d.items || !d.items.length) { feed.innerHTML = '<div class="mt-empty">Kol kas veiklos nėra.</div>'; return; }
-      feed.innerHTML = '';
+      if (!d.items || !d.items.length) { feed.appendChild(el('div', 'mt-empty', 'Kol kas veiklos nėra.')); return; }
       d.items.forEach(function (n) {
-        var it = document.createElement('div');
-        it.className = 'mt-fitem';
-        var ic = document.createElement('div'); ic.className = 'mt-fic'; ic.textContent = iconFor(n.type);
-        var mid = document.createElement('div'); mid.className = 'mt-fmid';
-        var t = document.createElement('div'); t.className = 'mt-ft'; t.textContent = n.title;
-        var b = document.createElement('div'); b.className = 'mt-fb'; b.textContent = (n.body || '').split('\n')[0];
-        var w = document.createElement('div'); w.className = 'mt-fw'; w.textContent = agoTxt(n.created_at);
-        mid.appendChild(t); mid.appendChild(b); mid.appendChild(w);
-        it.appendChild(ic); it.appendChild(mid);
+        var it = el('div', 'mt-fitem');
+        it.appendChild(el('div', 'mt-fic mt-fic-' + n.type, iconFor(n.type)));
+        var mid = el('div', 'mt-fmid');
+        mid.appendChild(el('div', 'mt-ft', n.title));
+        mid.appendChild(el('div', 'mt-fb', (n.body || '').split('\n')[0]));
+        mid.appendChild(el('div', 'mt-fw-time', agoTxt(n.created_at)));
+        it.appendChild(mid);
         it.addEventListener('click', function () { window.open(n.url, '_blank'); });
         feed.appendChild(it);
       });
     });
   }
 
-  // Periodiškai atnaujinam FAB ženkliuką (kiek naujų nuo paskutinio žvilgsnio) ir atvirą panelę
+  // Periodiškai: FAB pulsavimas (nauja veikla), atvira panelė, matomų laiškų statusai
   var seenActivityId = 0;
   function pollFab() {
     if (!ready) return;
     apiGet('activity?limit=1', function (d) {
       if (!d) return;
-      if (panelEl && panelOpen) refreshPanel();
       var newest = d.items && d.items[0] ? d.items[0].id : 0;
-      if (seenActivityId && newest > seenActivityId && !panelOpen && fabEl) {
-        fabEl.classList.add('pulse');
+      if (panelEl && panelOpen) refreshPanel();
+      if (seenActivityId && newest > seenActivityId) {
+        if (!panelOpen && fabEl) fabEl.classList.add('pulse');
+        lastStatusFetch = 0;           // nauja veikla – atnaujinam ✓/✓✓ sąraše
+        safe('decorateList', decorateList);
+        refreshVisibleBars(true);
       }
-      if (newest && !seenActivityId) seenActivityId = newest;
-      if (panelOpen) { seenActivityId = newest; if (fabEl) fabEl.classList.remove('pulse'); }
+      if (newest) seenActivityId = Math.max(seenActivityId, newest);
     });
+    refreshVisibleBars(false);
   }
 
   // ================= ŠABLONAI =================
@@ -338,7 +483,7 @@
     }
     place();
     function note(text) {
-      menu.innerHTML = '';
+      menu.textContent = '';
       var em = document.createElement('div');
       em.setAttribute('style', 'padding:10px;color:#80868b;white-space:normal');
       em.textContent = text;
@@ -349,7 +494,7 @@
       if (!d) { note('Nepavyko pasiekti serverio. Patikrinkite plėtinio nustatymus (serverio adresas ir API raktas).'); return; }
       var list = d.templates || [];
       if (!list.length) { note('Šablonų nėra. Sukurkite skydelyje → Šablonai.'); return; }
-      menu.innerHTML = '';
+      menu.textContent = '';
       list.forEach(function (t) {
         var it = document.createElement('div');
         it.className = 'mt-menu-item';
@@ -403,102 +548,239 @@
     }
   }
 
-  // ================= SAVO PERŽIŪROS + ATIDARYTO LAIŠKO STATUSAS =================
-  var selfviewSent = {};
+  // ================= ATIDARYTI LAIŠKAI (gija) =================
+  /* Kiekvienam laiškui (div.a3s) – VIENA juosta virš teksto:
+       • jūsų laiškas su mūsų pikseliu (NE citatoje) → ✓/✓✓ statusas (+ ↪);
+       • svetimas laiškas su sekimo pikseliu (NE citatoje) → 👁 „Seka: X“.
+     Anksčiau kiekvienas atsakymas gijoje rodydavo ženklus dar kartą, nes
+     skenuodavom ir cituotą tekstą (jūsų pačių Mailtrack/MailTrack pikselius),
+     o dublikato patikra žiūrėdavo tik į artimiausią kaimyną. */
+  var selfviewAt = {};
   function scanOpenedMessages() {
     if (!ready) return;
     var re = pixelRegex();
     if (!re) return;
-    // Atidarytų laiškų kūnai
-    document.querySelectorAll('div.a3s:not([data-mt-scanned])').forEach(function (msg) {
-      msg.setAttribute('data-mt-scanned', '1');
-      var html = msg.innerHTML || '';
-      var m = html.match(re);
-      // Gmail proxy gali URL-koduoti mūsų pikselio nuorodą – tikrinam ir atkoduotus img src
-      if (!m) {
-        var imgs = msg.querySelectorAll('img');
-        for (var k = 0; k < imgs.length && !m; k++) {
-          var raw = imgs[k].getAttribute('src') || imgs[k].getAttribute('data-src') || '';
-          m = (deproxy(raw) || '').match(re);
+    var svBatch = [];
+    document.querySelectorAll('div.a3s').forEach(function (msg) {
+      var info = msg.__mtInfo || (msg.__mtInfo = { tries: 0, ownDone: false, foreignDone: false, uid: null });
+
+      if (!info.ownDone) {
+        var all = [], top = [];
+        msg.querySelectorAll('img').forEach(function (img) {
+          var uid = ownUid(img, re);
+          if (!uid) return;
+          if (all.indexOf(uid) === -1) all.push(uid);
+          if (!isQuoted(img, msg) && top.indexOf(uid) === -1) top.push(uid);
+        });
+        info.ownDone = true;
+        // Savo peržiūra: Gmail proxy užkrauna VISUS paveikslėlius, taip pat cituotus –
+        // todėl pranešam apie visus rastus mūsų pikselius (ne tik pagrindinį).
+        all.forEach(function (u) {
+          if (!selfviewAt[u] || Date.now() - selfviewAt[u] > 60000) { selfviewAt[u] = Date.now(); svBatch.push(u); }
+        });
+        if (top.length) {
+          info.uid = top[top.length - 1];
+          info.foreignDone = true; // tai jūsų laiškas – svetimų sekiklių jame neieškom
+          rememberMine(senderOf(msg));
+          showOwnStatus(msg, info.uid, false);
         }
       }
-      if (!m) return;
-      var uid = m[1];
-      // Tai MŪSŲ sekamas laiškas, kurį atidarė pats vartotojas -> selfview
-      if (!selfviewSent[uid]) {
-        selfviewSent[uid] = Date.now();
-        apiPost('selfview', { uid: uid }, function () {});
-      }
-      apiGet('emails/' + uid, function (d) {
-        if (d) { statusMap[uid] = d; injectOpenBanner(msg, d); }
-      });
+      if (!info.foreignDone) detectForeignIn(msg, info);
     });
-    detectForeignTrackers();
+    if (svBatch.length) apiPost('selfview', { uids: svBatch.slice(0, 20) }, function () {});
   }
 
-  /* Ar KITI seka mus? Mailsuite rodo žalią tašką, kai gavėjas irgi naudoja Mailsuite.
-     Naudingesnis variantas: aptinkam, kai gautame laiške yra sekimo pikselis – t.y.
-     siuntėjas seka, ar jūs perskaitėte. Rodom ženklą su sekiklio pavadinimu. */
+  function showOwnStatus(msg, uid, force) {
+    var c = statusCache[uid];
+    if (c && c.d) paintOwn(barFor(msg), c.d);
+    if (!force && c && Date.now() - c.t < 30000) return;
+    statusCache[uid] = { d: c && c.d, t: Date.now() };
+    apiGet('emails/' + uid, function (d) {
+      if (!d) return;
+      statusCache[uid] = { d: d, t: Date.now() };
+      if (msg.isConnected) paintOwn(barFor(msg), d);
+    });
+  }
+
+  /** Atnaujina matomų jūsų laiškų juostas (kas ~60 s arba iškart po naujos veiklos). */
+  function refreshVisibleBars(force) {
+    document.querySelectorAll('div.a3s').forEach(function (msg) {
+      var info = msg.__mtInfo;
+      if (!info || !info.uid) return;
+      var c = statusCache[info.uid];
+      if (force || !c || Date.now() - c.t > 60000) showOwnStatus(msg, info.uid, true);
+    });
+  }
+
+  /* Viena juosta laiškui. Ieškom jau esamos tarp ankstesnių kaimynų (Gmail kartais
+     perpiešia a3s elementą) – kad niekada neatsirastų dvi. */
+  function barFor(msg) {
+    if (msg.__mtBar && msg.__mtBar.isConnected && msg.__mtBar.parentElement === msg.parentElement) return msg.__mtBar;
+    var bar = null;
+    for (var p = msg.previousElementSibling; p && /(^|\s)mt-/.test(p.getAttribute('class') || ''); ) {
+      var prev = p.previousElementSibling;
+      if (p.classList.contains('mt-msgbar')) {
+        if (!bar) bar = p; else p.remove();
+      } else if (p.classList.contains('mt-banner') || p.classList.contains('mt-tracked-by')) {
+        p.remove(); // senų versijų likučiai
+      }
+      p = prev;
+    }
+    if (!bar) {
+      bar = el('div', 'mt-msgbar');
+      if (!insertBefore(bar, msg)) return bar;
+    }
+    msg.__mtBar = bar;
+    return bar;
+  }
+
+  function setText(n, t) { if (n.textContent !== t) n.textContent = t; }
+  function setAttr(n, a, v) { if (n.getAttribute(a) !== v) n.setAttribute(a, v); }
+  function setClass(n, c) { if (n.getAttribute('class') !== c) n.setAttribute('class', c); }
+  var CHIP_ORDER = { own: 0, fwd: 1, foreign: 2 };
+  function chip(bar, key) {
+    var c = bar.querySelector(':scope > [data-mt="' + key + '"]');
+    if (!c) {
+      c = el('span');
+      c.setAttribute('data-mt', key);
+      // tvarka juostoje: savas statusas, persiųsta, svetimas sekiklis
+      var after = null;
+      bar.querySelectorAll(':scope > [data-mt]').forEach(function (x) {
+        if (CHIP_ORDER[x.getAttribute('data-mt')] < CHIP_ORDER[key]) after = x;
+      });
+      bar.insertBefore(c, after ? after.nextSibling : bar.firstChild);
+    }
+    return c;
+  }
+  function dropChip(bar, key) {
+    var c = bar.querySelector(':scope > [data-mt="' + key + '"]');
+    if (c) c.remove();
+  }
+
+  function paintOwn(bar, d) {
+    if (!bar) return;
+    var opened = d.open_count > 0;
+    var c = chip(bar, 'own');
+    setClass(c, 'mt-chip mt-own ' + (opened ? 'on' : 'off'));
+    var txt = opened
+      ? '✓✓ Atidaryta ' + d.open_count + ' k.' + (d.last_open_at ? ' · ' + agoTxt(d.last_open_at) : '')
+      : '✓ Išsiųsta · dar neatidaryta';
+    if (d.click_count > 0) txt += ' · 🔗 ' + d.click_count;
+    setText(c, txt);
+    setAttr(c, 'title', (opened
+      ? 'Pirmą kartą: ' + fmtShort(d.first_open_at) + '\nPaskutinį kartą: ' + fmtShort(d.last_open_at)
+      : 'Išsiųsta: ' + fmtShort(d.sent_at)) + '\nSpauskite – atidarymų istorija');
+    c.__mtUid = d.uid;
+    if (d.forwarded) {
+      var f = chip(bar, 'fwd');
+      setClass(f, 'mt-chip mt-fwd');
+      setText(f, '↪ Galimai persiųstas');
+      setAttr(f, 'title', (d.forward_reason || 'Atidarymų daugiau nei tikėtina vienam gavėjui') + '\nSpauskite – atidarymų istorija');
+      f.__mtUid = d.uid;
+    } else {
+      dropChip(bar, 'fwd');
+    }
+  }
+
+  /* Ar KITI seka jus? Gautame laiške ieškom sekimo pikselio (tik NE cituotame tekste
+     ir tik ne jūsų pačių laiškuose). Paveikslėliai kraunasi ne iškart (Gmail proxy),
+     todėl bandom kelis ciklus. */
+  function detectForeignIn(msg, info) {
+    var sender = senderOf(msg);
+    if (sender && isMine(sender)) { info.foreignDone = true; return; }
+    if (info.tries >= 12) { info.foreignDone = true; return; }
+    info.tries++;
+    var found = {};
+    var re = pixelRegex();
+    msg.querySelectorAll('img').forEach(function (img) {
+      var raw = imgSrc(img);
+      if (!raw) return;
+      if (isQuoted(img, msg)) return;
+      if (re && ownUid(img, re)) return;
+      var name = trackerFromSrc(raw, img);
+      if (name) { found[name] = 1; return; }
+      // dar neužsikrovęs paveikslėlis – gali būti pikselis; perskenuosim jam užsikrovus
+      if ((!img.complete || img.naturalWidth === 0) && !img.__mtLoadHook) {
+        img.__mtLoadHook = 1;
+        var again = function () { safe('scanOpenedMessages', scanOpenedMessages); };
+        img.addEventListener('load', again, { once: true });
+        img.addEventListener('error', again, { once: true });
+      }
+    });
+    var names = Object.keys(found);
+    if (!names.length) return;
+    info.foreignDone = true;
+    var bar = barFor(msg);
+    var c = chip(bar, 'foreign');
+    setClass(c, 'mt-chip mt-foreign');
+    c.textContent = '';
+    c.appendChild(eyeIcon());
+    c.appendChild(document.createTextNode(' Seka: ' + names.join(', ')));
+    c.title = 'Siuntėjas mato, ar ir kada atidarėte šį laišką (' + names.join(', ') + ').\n' +
+      'Kad nesektų – Gmail nustatymuose išjunkite automatinį paveikslėlių rodymą.';
+    if (sender) rememberTrackSender(sender, names[0]);
+  }
+
   var TRACKERS = [
-    [/mailtrack\.io|mailtrack\.me/i, 'Mailtrack'],
+    [/mailtrack\.io|mailtrack\.me|mltrk\.io/i, 'Mailtrack'],
     [/mailsuite\.com|\bmlsnd\b/i, 'Mailsuite'],
     [/yesware\.com/i, 'Yesware'],
     [/streak\.com|mailfoogae/i, 'Streak'],
-    [/hubspot\.com|hubspotemail|hs-sites|hubspotlinks/i, 'HubSpot'],
+    [/hubspot\.com|hubspotemail|hs-sites|hubspotlinks|[/.]hubs\.ly/i, 'HubSpot'],
     [/mixmax\.com/i, 'Mixmax'],
     [/bananatag\.com/i, 'Bananatag'],
     [/saleshandy\.com/i, 'Saleshandy'],
-    [/snov\.io/i, 'Snov.io'],
-    [/gmass\.co/i, 'GMass'],
+    [/[/.]snov\.io/i, 'Snov.io'],
+    [/[/.]gmass\.co/i, 'GMass'],
     [/contactmonkey\.com/i, 'ContactMonkey'],
     [/cirrusinsight\.com/i, 'Cirrus Insight'],
     [/getnotify\.com|didtheyreadit/i, 'GetNotify'],
-    [/outreach\.io/i, 'Outreach'],
-    [/apollo\.io/i, 'Apollo'],
+    [/[/.]outreach\.io/i, 'Outreach'],
+    [/[/.]apollo\.io/i, 'Apollo'],
     [/sendgrid\.net|sendgrid\.com/i, 'SendGrid'],
-    [/mailchimp\.com|list-manage\.com|mcusercontent/i, 'Mailchimp'],
+    [/list-manage\.com|[/.]mailchimp\.com\/.*(open|track)/i, 'Mailchimp'],
     [/sparkpostmail|sparkpost\.com/i, 'SparkPost'],
     [/mailgun\.org|mailgun\.net|mailgun\.com|mailgunapp/i, 'Mailgun'],
-    [/sendinblue\.com|sibautomation|brevo\.com/i, 'Brevo/Sendinblue'],
-    [/customer\.io|customeriomail|track\.customer/i, 'Customer.io'],
-    [/klaviyo\.com|kmail-lists/i, 'Klaviyo'],
-    [/hubs\.ly/i, 'HubSpot'],
+    [/sendinblue\.com|sibautomation|[/.]brevo\.com/i, 'Brevo'],
+    [/customeriomail|track\.customer\.io/i, 'Customer.io'],
+    [/[/.]klaviyo\.com\/.*open|kmail-lists|trk\.klclick/i, 'Klaviyo'],
     [/mandrillapp\.com/i, 'Mandrill'],
     [/postmarkapp\.com|pstmrk\.it/i, 'Postmark'],
     [/mailerlite\.com|ml\.mailerlite|mlsend\.com|mlsend\.net/i, 'MailerLite'],
-    [/constantcontact\.com|rs6\.net|ctctcdn/i, 'Constant Contact'],
-    [/activehosted\.com|activecampaign/i, 'ActiveCampaign'],
-    [/getresponse\.com|grsm\.io/i, 'GetResponse'],
-    [/aweber\.com|awtrack/i, 'AWeber'],
-    [/convertkit|ck\.page|kit\.com/i, 'ConvertKit'],
-    [/marketo\.com|mktoresp|mkto\b/i, 'Marketo'],
-    [/pardot\.com|pi\.pardot/i, 'Pardot'],
-    [/salesforce\.com\/.*\/email|exct\.net|exacttarget/i, 'Salesforce'],
-    [/intercom|intercomcdn|intercomassets/i, 'Intercom'],
-    [/amazonses|amazonaws\.com\/.*open/i, 'Amazon SES'],
-    [/sendpulse\.com/i, 'SendPulse'],
-    [/moosend\.com/i, 'Moosend'],
-    [/omnisend\.com/i, 'Omnisend'],
-    [/drip\.com|getdrip/i, 'Drip'],
-    [/woodpecker\.co/i, 'Woodpecker'],
-    [/lemlist\.com|lemwarm/i, 'Lemlist'],
-    [/reply\.io/i, 'Reply.io'],
-    [/close\.com|close\.io/i, 'Close CRM'],
-    [/pipedrive|pipedrivemail/i, 'Pipedrive'],
-    [/zoho\.com\/.*open|zohomail|zcsend/i, 'Zoho'],
-    [/mailjet\.com|mjt\.lu/i, 'Mailjet'],
+    [/rs6\.net|[/.]constantcontact\.com\/.*(open|track)/i, 'Constant Contact'],
+    [/activehosted\.com|[/.]acems\d*\.com/i, 'ActiveCampaign'],
+    [/[/.]getresponse\.com\/.*open|grsm\.io/i, 'GetResponse'],
+    [/[/.]aweber\.com\/.*open|awtrack/i, 'AWeber'],
+    [/convertkit-mail|[/.]ck\.page\/.*open/i, 'ConvertKit'],
+    [/[/.]mktoresp\.com|\/trk\?.*mkt_tok/i, 'Marketo'],
+    [/pi\.pardot\.com|go\.pardot\.com/i, 'Pardot'],
+    [/exct\.net|exacttarget/i, 'Salesforce'],
+    [/via\.intercom\.io|intercom-mail|[/.]intercom\.io\/.*open/i, 'Intercom'],
+    [/amazonses\.com|awstrack\.me/i, 'Amazon SES'],
+    [/[/.]sendpulse\.com/i, 'SendPulse'],
+    [/[/.]moosend\.com|moosend-mail/i, 'Moosend'],
+    [/[/.]omnisend\.com|omnisrc\.com/i, 'Omnisend'],
+    [/[/.]getdrip\.com|[/.]drip\.com\/.*open/i, 'Drip'],
+    [/[/.]woodpecker\.co/i, 'Woodpecker'],
+    [/[/.]lemlist\.com|lemwarm/i, 'Lemlist'],
+    [/[/.]reply\.io\/.*(open|track)/i, 'Reply.io'],
+    [/[/.]close\.(com|io)\/.*(open|track)/i, 'Close CRM'],
+    [/pipedrivemail|[/.]pipedrive\.com\/.*(open|track)/i, 'Pipedrive'],
+    [/zcsend\.net|[/.]zoho\.(com|eu)\/.*(open|track)/i, 'Zoho'],
+    [/[/.]mjt\.lu|[/.]mailjet\.com\/.*open/i, 'Mailjet'],
     [/elasticemail/i, 'Elastic Email'],
-    [/benchmarkemail/i, 'Benchmark'],
-    [/campaign-archive|cmail\d|createsend\.com/i, 'Campaign Monitor'],
-    [/tinyletter/i, 'TinyLetter'],
-    [/substack\.com\/.*open|substackcdn/i, 'Substack'],
-    [/bit\.ly\/.*\.gif|beacon|open\.aspx/i, 'sekimo pikselis']
+    [/benchmarkemail\.com\/.*(open|track)|bmetrack/i, 'Benchmark'],
+    [/createsend\d*\.com\/t\/|cmail\d+\.com\/t\//i, 'Campaign Monitor'],
+    [/[/.]substack\.com\/o\/|substack\.com\/.*open/i, 'Substack'],
+    [/[/.]superhuman\.com|r\.superhuman/i, 'Superhuman'],
+    [/[/.]mailbutler\.io/i, 'Mailbutler'],
+    [/[/.]boomerangapp\.com/i, 'Boomerang'],
+    [/[/.]rightinbox\.com/i, 'Right Inbox']
   ];
 
   /* Gmail VISAS gautų laiškų paveikslėlių nuorodas persiunčia per savo tarpinį
      serverį (googleusercontent.com Image Proxy). Tikroji sekiklio nuoroda lieka
-     po „#" (fragmente) arba URL-kode. Be jos atkodavimo sekiklio nepamatytume –
-     dėl to anksčiau nieko nerodė. Čia atkoduojam originalią nuorodą. */
+     po „#" (fragmente) arba URL-kode. Čia atkoduojam originalią nuorodą. */
   function deproxy(src) {
     if (!src) return src;
     // 1) dažniausias variantas: originalas po '#'
@@ -521,100 +803,57 @@
     var src = deproxy(rawsrc);
     if (!src || src.indexOf('data:') === 0 || src.indexOf('cid:') === 0) return null;
 
-    // 1) Žinomi sekimo/rinkodaros paslaugų teikėjai (pagal domeną atkoduotame URL'e)
-    for (var i = 0; i < TRACKERS.length; i++) {
-      if (TRACKERS[i][0].test(src)) return TRACKERS[i][1];
-    }
-
     var host;
     try { host = new URL(src, location.href).hostname.toLowerCase(); } catch (e) { return null; }
     // mūsų pačių serveris – praleidžiam
     if (CFG && CFG.serverUrl) { try { if (new URL(CFG.serverUrl).hostname.toLowerCase() === host) return null; } catch (e) {} }
+
+    // 1) Žinomi sekimo paslaugų teikėjai (pagal atkoduotą URL)
+    for (var i = 0; i < TRACKERS.length; i++) {
+      if (TRACKERS[i][0].test(src)) return TRACKERS[i][1];
+    }
+
     // Jei net po atkodavimo liko Google domenas – tai tikras Google turinys
     // (emoji, nuotraukos), NE sekiklis; praleidžiam.
     if (/(^|\.)(google|googleusercontent|gstatic|ggpht|youtube|ytimg|googleapis|gmail)\.com$/i.test(host)) return null;
     if (/(^|\.)google\.[a-z.]+$/i.test(host)) return null;
 
+    // 2) Nežinomas teikėjas: tik tikrai NEMATOMAS paveikslėlis (1×1 / paslėptas).
+    //    Vien URL žodžiai („.gif“, „campaign“) – per daug klaidingų (logotipai, parašai).
     var w = parseInt(img.getAttribute('width') || '0', 10);
     var h = parseInt(img.getAttribute('height') || '0', 10);
     var st = (img.getAttribute('style') || '').replace(/\s/g, '').toLowerCase();
-    var tiny = (w > 0 && w <= 3) || (h > 0 && h <= 3)
-      || img.naturalWidth === 1 || img.naturalHeight === 1
-      || (img.naturalWidth > 0 && img.naturalWidth <= 2 && img.naturalHeight > 0 && img.naturalHeight <= 2);
-    var hidden = /display:none|visibility:hidden|opacity:0|width:0|height:0|width:1px|height:1px/.test(st)
-      || (img.offsetParent === null && img.getBoundingClientRect().width <= 3);
-    var trackyUrl = /(open|pixel|beacon|track|trk|trackable|wf\/open|\/o\/|\/t\/|\/e\/|utm_|mkt_tok|email=|recipient=|mid=|sig=|eid=|subscriber|campaign|newsletter|\bimg\.php|spacer\.gif|clear\.gif|1x1|blank\.gif|\.gif(\?|#|$))/i.test(src);
-
-    if (tiny || hidden || trackyUrl) {
+    var tinyAttr = (w > 0 && w <= 2 && h <= 2) || (h > 0 && h <= 2 && w <= 2);
+    var tinyNat = img.complete && img.naturalWidth > 0 && img.naturalWidth <= 2 && img.naturalHeight <= 2;
+    var hiddenSt = /display:none|visibility:hidden|opacity:0(;|$)|max-height:0|width:[01]px|height:[01]px/.test(st);
+    var trackyUrl = /(open|pixel|beacon|track|trk|\/o\/|wf\/open|1x1|spacer|blank\.gif|clear\.gif)/i.test(src);
+    if (tinyAttr || tinyNat || (hiddenSt && trackyUrl)) {
       var parts = host.split('.');
       return parts.length >= 2 ? parts.slice(-2).join('.') : host;
     }
     return null;
   }
 
-  function detectForeignTrackers() {
-    document.querySelectorAll('div.a3s').forEach(function (msg) {
-      // Jei jau pažymėta – nebeskanuojam
-      if (msg.previousElementSibling && msg.previousElementSibling.classList.contains('mt-tracked-by')) return;
-      // Ribotas kartojimas: paveikslėliai kraunasi ne iškart (Gmail proxy),
-      // todėl bandom kelis ciklus, kol pikselis užsikrauna arba pasiduodam.
-      var tries = parseInt(msg.getAttribute('data-mt-tries') || '0', 10);
-      if (tries >= 12) return;
-      msg.setAttribute('data-mt-tries', String(tries + 1));
-
-      var found = {};
-      var pending = false;
-      msg.querySelectorAll('img').forEach(function (img) {
-        var raw = img.getAttribute('src') || img.getAttribute('data-src') || img.getAttribute('data-surl') || '';
-        if (!raw) return;
-        var name = trackerFromSrc(raw, img);
-        if (name) { found[name] = 1; return; }
-        // dar neužsikrovęs paveikslėlis – gali būti pikselis; perskenuosim jam užsikrovus
-        if ((!img.complete || img.naturalWidth === 0) && !img.__mtLoadHook) {
-          img.__mtLoadHook = 1;
-          pending = true;
-          img.addEventListener('load', function () { safe('detectForeignTrackers', detectForeignTrackers); }, { once: true });
-          img.addEventListener('error', function () { safe('detectForeignTrackers', detectForeignTrackers); }, { once: true });
-        }
-      });
-      var names = Object.keys(found);
-      if (!names.length) {
-        // jei liko nekrautų paveikslėlių – dar bandysim kitą ciklą (per observer/pollFab)
-        return;
-      }
-      // Trumpas ženklas: tik 🔴 + sekiklio pavadinimas (be litanijos).
-      var b = document.createElement('div');
-      b.className = 'mt-tracked-by';
-      b.textContent = '🔴 ' + names.join(' · ');
-      b.title = 'Šis laiškas jus seka – siuntėjas mato, ar ir kada jį atidarėte (' + names.join(', ') + '). Kad nesektų, Gmail nustatymuose išjunkite automatinį paveikslėlių rodymą.';
-      insertBefore(b, msg);
-
-      // Įsimenam siuntėjo domeną – kad tašką galėtume rodyti ir laiškų SĄRAŠE.
-      var sender = senderOf(msg);
-      if (sender) rememberTrackSender(domainOf(sender), names[0]);
-    });
-  }
-
-  /* Atidaryto laiško siuntėjo el. paštas (iš antraštės). Reikia, kad sąraše
-     galėtume pažymėti tašku laiškus iš to paties sekančio siuntėjo. */
+  /* Atidaryto laiško siuntėjo el. paštas (iš antraštės). Neinam aukščiau nei
+     paties laiško konteineris – kitaip paimtume KITO gijos laiško siuntėją. */
   function senderOf(msg) {
-    var box = msg.closest('.gs, .adn, .h7, [data-message-id]') || msg.parentElement;
-    for (var hop = 0; box && hop < 4; hop++) {
-      var el = box.querySelector('span[email], [data-hovercard-id]');
-      if (el) {
-        var em = el.getAttribute('email') || el.getAttribute('data-hovercard-id') || '';
-        if (em.indexOf('@') !== -1) return em;
+    var box = msg.closest('.adn, .gs, [data-message-id]') || msg.parentElement;
+    for (var hop = 0; box && hop < 3; hop++) {
+      if (hop > 0 && box.querySelectorAll('div.a3s').length > 1) break;
+      // pirmiausia Gmail antraštės „Nuo“ (.gD), tik tada bet koks adresas antraštėje
+      var cands = [].slice.call(box.querySelectorAll('.gD[email]')).concat([].slice.call(box.querySelectorAll('span[email], [data-hovercard-id]')));
+      for (var i = 0; i < cands.length; i++) {
+        if (msg.contains(cands[i])) continue; // adresai pačiame laiško tekste – ne siuntėjas
+        var em = cands[i].getAttribute('email') || cands[i].getAttribute('data-hovercard-id') || '';
+        if (em.indexOf('@') !== -1) return em.toLowerCase();
       }
       box = box.parentElement;
     }
     return '';
   }
 
-  /* SVARBU: įterpiam tik į TIKRĄ tėvinį elementą.
-     Anksčiau čia buvo host = msg.closest('.gs, .adn, .h7'), o toks protėvis
-     būna keliais lygiais aukščiau – tada insertBefore(b, msg) meta
-     NotFoundError ir nutraukia visą ciklą (nebeveikia sąrašo ženklai,
-     mini dashboardas ir kt.). */
+  /* SVARBU: įterpiam tik į TIKRĄ tėvinį elementą (kitaip insertBefore meta
+     NotFoundError ir nutraukia visą ciklą). */
   function insertBefore(node, ref) {
     var parent = ref && ref.parentElement;
     if (!parent) return false;
@@ -627,33 +866,71 @@
     }
   }
 
-  function injectOpenBanner(msgEl, d) {
-    var opened = d.open_count > 0;
-    var txt = opened
-      ? '✓✓ MailTrack: atidaryta ' + d.open_count + ' k.' + (d.last_open_at ? ' · paskutinis ' + fmtShort(d.last_open_at) : '')
-      : '✓ MailTrack: išsiųsta, dar neatidaryta';
-    if (d.forwarded) txt += ' · ↪ galimai persiųstas';
-    var cls = 'mt-banner ' + (opened ? 'on' : '') + (d.forwarded ? ' fwd' : '');
-    var tip = d.forwarded && d.forward_reason ? d.forward_reason + ' · atidaryti skydelį' : 'Atidaryti skydelį';
-    var prev = msgEl.previousElementSibling;
-    if (prev && prev.classList.contains('mt-banner')) {
-      prev.className = cls;
-      prev.textContent = txt;
-      prev.title = tip;
-      return;
-    }
-    var b = document.createElement('div');
-    b.className = cls;
-    b.textContent = txt;
-    b.title = tip;
-    b.addEventListener('click', function () { window.open(d.dashboard_url, '_blank'); });
-    insertBefore(b, msgEl);
-  }
-  function fmtShort(iso) {
-    try { var dt = new Date(iso); return dt.toLocaleString(); } catch (e) { return iso; }
+  function eyeIcon() {
+    var NS = 'http://www.w3.org/2000/svg';
+    var s = document.createElementNS(NS, 'svg');
+    s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('width', '14'); s.setAttribute('height', '14');
+    s.setAttribute('class', 'mt-eye'); s.setAttribute('aria-hidden', 'true');
+    var p = document.createElementNS(NS, 'path');
+    p.setAttribute('fill', 'currentColor');
+    p.setAttribute('d', 'M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zm0 12.5a5 5 0 1 1 0-10 5 5 0 0 1 0 10zm0-8a3 3 0 1 0 0 6 3 3 0 0 0 0-6z');
+    s.appendChild(p);
+    return s;
   }
 
-  // ================= LAIŠKŲ SĄRAŠAS (best-effort pagal temą) =================
+  // ================= ATIDARYMŲ ISTORIJA (spustelėjus ✓/✓✓) =================
+  function closePop() { var p = document.querySelector('.mt-pop'); if (p) p.remove(); }
+  function openHistory(anchor, uid) {
+    closePop();
+    if (!uid) return;
+    var pop = el('div', 'mt-pop');
+    pop.appendChild(el('div', 'mt-pop-load', 'Kraunama…'));
+    document.documentElement.appendChild(pop);
+    function place() {
+      var r = anchor.getBoundingClientRect();
+      var w = pop.offsetWidth || 340, h = pop.offsetHeight || 200;
+      pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - w - 8)) + 'px';
+      pop.style.top = (r.bottom + 6 + h < window.innerHeight ? r.bottom + 6 : Math.max(8, r.top - 6 - h)) + 'px';
+    }
+    place();
+    apiGet('emails/' + uid, function (d) {
+      if (!pop.isConnected) return;
+      pop.textContent = '';
+      if (!d) { pop.appendChild(el('div', 'mt-pop-load', 'Nepavyko gauti duomenų iš serverio.')); place(); return; }
+      statusCache[uid] = { d: d, t: Date.now() };
+      var head = el('div', 'mt-pop-head');
+      head.appendChild(el('div', 'mt-pop-subj', d.subject || '(be temos)'));
+      if (d.recipients) head.appendChild(el('div', 'mt-pop-meta', 'Kam: ' + d.recipients));
+      head.appendChild(el('div', 'mt-pop-meta', 'Išsiųsta: ' + fmtShort(d.sent_at)));
+      pop.appendChild(head);
+      var sum = el('div', 'mt-pop-sum');
+      sum.appendChild(el('span', 'mt-chip mt-own ' + (d.open_count > 0 ? 'on' : 'off'), d.open_count > 0 ? '✓✓ Atidaryta ' + d.open_count + ' k.' : '✓ Dar neatidaryta'));
+      if (d.click_count > 0) sum.appendChild(el('span', 'mt-chip mt-clk', '🔗 Paspaudimai: ' + d.click_count));
+      if (d.forwarded) sum.appendChild(el('span', 'mt-chip mt-fwd', '↪ Galimai persiųstas'));
+      pop.appendChild(sum);
+      if (d.forwarded && d.forward_reason) pop.appendChild(el('div', 'mt-pop-note', d.forward_reason));
+      var opens = (d.opens || []).filter(function (o) { return !(+o.ignored); });
+      var list = el('div', 'mt-pop-list');
+      if (!opens.length) list.appendChild(el('div', 'mt-pop-empty', 'Atidarymų dar nėra.'));
+      opens.slice(0, 12).forEach(function (o) {
+        var row = el('div', 'mt-pop-row');
+        row.appendChild(el('span', 'mt-pop-when', fmtShort(o.opened_at)));
+        var where = o.proxy ? 'per ' + o.proxy : [o.device, o.os, o.city || o.country].filter(Boolean).join(' · ');
+        row.appendChild(el('span', 'mt-pop-where', (where || '–') + (o.ignore_reason ? ' ⚠' : '')));
+        if (o.ignore_reason) row.title = o.ignore_reason;
+        list.appendChild(row);
+      });
+      if (opens.length > 12) list.appendChild(el('div', 'mt-pop-empty', '…ir dar ' + (opens.length - 12)));
+      pop.appendChild(list);
+      var foot = el('div', 'mt-pop-foot');
+      var a = el('a', null, 'Visa istorija skydelyje ↗'); a.href = d.dashboard_url; a.target = '_blank';
+      foot.appendChild(a);
+      pop.appendChild(foot);
+      place();
+    });
+  }
+
+  // ================= LAIŠKŲ SĄRAŠAS =================
   function refreshStatusIndex(cb) {
     var now = Date.now();
     if (now - lastStatusFetch < 20000) { cb && cb(); return; }
@@ -662,86 +939,124 @@
       if (d && d.emails) {
         subjectIndex = {};
         d.emails.forEach(function (e) {
-          statusMap[e.uid] = e;
+          e.__rcpt = ((e.recipients || '').toLowerCase().match(EMAIL_RE) || []);
           var key = normSubject(e.subject);
-          if (key) {
-            // jei tema kartojasi – laikom naujausią (sąrašas nuo naujausių)
-            if (!subjectIndex[key]) subjectIndex[key] = e;
-          }
+          if (!key) return;
+          (subjectIndex[key] = subjectIndex[key] || []).push(e); // sąrašas nuo naujausių
         });
       }
       cb && cb();
     });
   }
 
-  // Temą normalizuojam: nuimam Re:/Fwd:/Fw: priešdėlius ir sutraukiam tarpus,
+  // Temą normalizuojam: nuimam Re:/Fwd:/Fw:/AW:/Atsak.: priešdėlius ir sutraukiam tarpus,
   // kad sekamą laišką atpažintume ir gijoje (atsakymuose), ir persiųstą.
   function normSubject(s) {
-    s = String(s || '').toLowerCase().trim();
+    s = String(s || '').toLowerCase().replace(/\s+/g, ' ').trim();
     var prev;
-    do { prev = s; s = s.replace(/^\s*(re|fwd|fw|atsak|persi)\s*:\s*/i, ''); } while (s !== prev);
-    return s.replace(/\s+/g, ' ').trim();
+    do { prev = s; s = s.replace(/^(re|fwd?|aw|wg|sv|vs|atsak|ats|persiųsta|persi)\s*(\[\d+\])?\s*[:：]\s*/i, ''); } while (s !== prev);
+    return s.trim();
+  }
+
+  /* Eilutės dalyviai (el. paštai). Gmail juos laiko span[email] atributuose. */
+  function rowEmails(row) {
+    var out = [];
+    row.querySelectorAll('span[email]').forEach(function (n) {
+      var e = (n.getAttribute('email') || '').toLowerCase();
+      if (!e) return;
+      if (out.indexOf(e) === -1) out.push(e);
+      // „aš“ / „me“ sąraše = jūsų adresas – įsimenam
+      var t = (n.textContent || '').trim().toLowerCase();
+      if (/^(aš|me|ich|moi|yo|я|eu|io|ja)$/.test(t)) rememberMine(e);
+    });
+    return out;
+  }
+
+  /* Ar eilutė – MŪSŲ sekamas laiškas? Tema turi sutapti IR (jei žinomi gavėjai)
+     bent vienas eilutės dalyvis turi būti to laiško gavėjas. Anksčiau užtekdavo
+     temos – todėl ženklas atsirasdavo prie svetimų laiškų su ta pačia tema. */
+  function matchOwn(subj, emails) {
+    var cands = subj ? subjectIndex[subj] : null;
+    if (!cands) return null;
+    var mine = myEmails();
+    var others = emails.filter(function (e) { return !mine[e]; });
+    var weak = null;
+    for (var i = 0; i < cands.length; i++) {
+      var c = cands[i];
+      if (!c.__rcpt.length) { if (!weak) weak = c; continue; }
+      for (var j = 0; j < others.length; j++) if (c.__rcpt.indexOf(others[j]) !== -1) return c;
+    }
+    return weak;
   }
 
   function decorateList() {
     if (!ready) return;
-    // Rodom VISUOSE sąrašuose (Gauti, Išsiųsti, Visi, paieška, etiketės) – kaip
-    // Mailsuite žalią tašką. Sekamą laišką atpažįstam pagal normalizuotą temą,
-    // todėl matomas ir gijoje su atsakymais.
     refreshStatusIndex(function () {
-      document.querySelectorAll('tr.zA').forEach(function (row) {
+      var rows = document.querySelectorAll('tr.zA');
+      if (!rows.length) return;
+      var showForeign = !CFG || CFG.listForeign !== false;
+      var inSent = /^#(sent|išsiųsti)/i.test(location.hash);
+      rows.forEach(function (row) {
         var subjEl = row.querySelector('.bog, .y6 span[id], .bqe, .xT .y6 span, .y6 > span');
-        var anchor = row.querySelector('.xW, .y6') || subjEl;
-
-        // (A) RAUDONAS taškas: laiškas iš siuntėjo, kurio laiškuose aptikome sekiklį
-        //     (kaip Mailsuite – matai dar sąraše, kad tave seka).
-        var sEl = row.querySelector('.yW span[email], .zF[email], span[email], [data-hovercard-id]');
-        var sEmail = sEl ? (sEl.getAttribute('email') || sEl.getAttribute('data-hovercard-id') || '') : '';
-        var sDom = domainOf(sEmail);
-        var trk = row.querySelector('.mt-list-trk');
-        if (sDom && trackSenders[sDom]) {
-          if (!trk && anchor && anchor.parentElement) {
-            trk = document.createElement('span');
-            trk.className = 'mt-list-trk';
-            trk.textContent = '●';
-            anchor.parentElement.insertBefore(trk, anchor);
-          }
-          if (trk) trk.title = 'Šis siuntėjas jus seka (' + trackSenders[sDom] + ') – mato, ar atidarėte laišką.';
-        } else if (trk) {
-          trk.remove();
-        }
-
-        // (B) ŽALIAS/PILKAS taškas: MŪSŲ pačių sekamas laiškas (pagal temą)
+        var anchor = row.querySelector('.y6') || subjEl;
+        var emails = rowEmails(row);
         var subj = subjEl ? normSubject(subjEl.textContent) : '';
-        var e = subj ? subjectIndex[subj] : null;
-        var badge = row.querySelector('.mt-list-badge');
-        if (!e) {
-          if (badge) badge.remove();
-          row.__mtBadge = false;
-          return;
+        var e = matchOwn(subj, emails);
+
+        // svetimas sekiklis: tik pagal TIKSLŲ siuntėjo adresą ir ne „Išsiųstuose“
+        var foreign = null;
+        if (showForeign && !inSent) {
+          for (var i = 0; i < emails.length; i++) {
+            if (trackSenders[emails[i]] && !isMine(emails[i])) { foreign = trackSenders[emails[i]]; break; }
+          }
         }
-        var opened = e.open_count > 0;
-        if (!badge) {
-          badge = document.createElement('span');
-          badge.className = 'mt-list-badge';
-          if (anchor && anchor.parentElement) anchor.parentElement.insertBefore(badge, anchor);
-          else return;
-        }
-        badge.classList.toggle('on', opened);
-        badge.classList.toggle('fwd', !!e.forwarded);
-        badge.textContent = e.forwarded ? '↪' : '●';
-        badge.title = (opened
-          ? ('MailTrack: atidaryta ' + e.open_count + ' k.' + (e.last_open_at ? ' · ' + fmtShort(e.last_open_at) : ''))
-          : 'MailTrack: sekama · dar neatidaryta') + (e.forwarded ? ' · galimai persiųstas' : '');
-        row.__mtBadge = true;
+        paintRow(row, anchor, e, foreign);
       });
     });
   }
 
+  function paintRow(row, anchor, e, foreign) {
+    var box = row.querySelector('.mt-marks');
+    // senų versijų taškai
+    row.querySelectorAll('.mt-list-badge, .mt-list-trk').forEach(function (n) { n.remove(); });
+    if (!e && !foreign) { if (box) box.remove(); return; }
+    if (!box) {
+      if (!anchor || !anchor.parentElement) return;
+      box = el('span', 'mt-marks');
+      anchor.parentElement.insertBefore(box, anchor);
+    }
+    // savas statusas
+    var ck = box.querySelector('.mt-ck');
+    var fw = box.querySelector('.mt-fw');
+    if (e) {
+      var opened = e.open_count > 0;
+      if (!ck) { ck = el('span'); box.insertBefore(ck, box.firstChild); }
+      setClass(ck, 'mt-ck' + (opened ? ' on' : ''));
+      setText(ck, opened ? '✓✓' : '✓');
+      setAttr(ck, 'title', (opened
+        ? 'Atidaryta ' + e.open_count + ' k. · paskutinį kartą ' + fmtShort(e.last_open_at)
+        : 'Sekama · dar neatidaryta (išsiųsta ' + fmtShort(e.sent_at) + ')') +
+        (e.click_count > 0 ? ' · paspaudimų: ' + e.click_count : '') + '\nSpauskite – istorija');
+      ck.__mtUid = e.uid;
+      if (e.forwarded) {
+        if (!fw) { fw = el('span', 'mt-fw', '↪'); box.insertBefore(fw, ck.nextSibling); }
+        setAttr(fw, 'title', 'Galimai persiųstas' + (e.forward_reason ? ': ' + e.forward_reason : ''));
+        fw.__mtUid = e.uid;
+      } else if (fw) fw.remove();
+    } else {
+      if (ck) ck.remove();
+      if (fw) fw.remove();
+    }
+    // svetimas sekiklis
+    var eye = box.querySelector('.mt-eye-wrap');
+    if (foreign) {
+      if (!eye) { eye = el('span', 'mt-eye-wrap'); eye.appendChild(eyeIcon()); box.appendChild(eye); }
+      setAttr(eye, 'title', 'Šis siuntėjas jus seka (' + foreign + ') – mato, ar atidarėte jo laišką.');
+    } else if (eye) eye.remove();
+  }
+
   // ================= STEBĖJIMAS =================
-  /* Kiekvieną dalį vykdom atskirai. Anksčiau viena klaida (pvz. insertBefore su
-     netinkamu tėvu) nutraukdavo VISĄ ciklą – tada nebeveikdavo nei sąrašo ženklai,
-     nei mini dashboardas. Dabar sugedusi dalis nebetrukdo kitoms. */
+  /* Kiekvieną dalį vykdom atskirai – sugedusi dalis nebetrukdo kitoms. */
   function safe(name, fn) {
     try {
       fn();
@@ -761,10 +1076,28 @@
     if (ready) safe('ensureFab', ensureFab);
   }
 
+  /* Mūsų pačių DOM pakeitimai neturi sukelti naujo ciklo (anksčiau kas 250 ms
+     perrašydavom ženklus → observer → vėl ciklas: be galo kaitinamas CPU). */
+  var OWN_SEL = '.mt-marks, .mt-msgbar, .mt-panel, .mt-pop, .mt-toggle, .mt-fab, .mt-menu';
+  function isOwnNode(n) {
+    if (n.nodeType === 3) return !!(n.parentElement && n.parentElement.closest(OWN_SEL));
+    return n.nodeType === 1 && /(^|\s)mt-/.test(n.getAttribute('class') || '');
+  }
+  function ownMutation(m) {
+    var t = m.target;
+    if (t && t.nodeType === 1 && t.closest && t.closest(OWN_SEL)) return true;
+    var nodes = [].slice.call(m.addedNodes).concat([].slice.call(m.removedNodes));
+    return nodes.length > 0 && nodes.every(isOwnNode);
+  }
   var tick = 0;
-  var observer = new MutationObserver(function () {
-    clearTimeout(tick);
-    tick = setTimeout(runCycle, 250);
+  var observer = new MutationObserver(function (muts) {
+    for (var i = 0; i < muts.length; i++) {
+      if (!ownMutation(muts[i])) {
+        clearTimeout(tick);
+        tick = setTimeout(runCycle, 250);
+        return;
+      }
+    }
   });
 
   /* Gmail savo įrankių juostoje perima paspaudimus (stopPropagation capture fazėje),
@@ -774,12 +1107,14 @@
     if (window.__mtClickCaptureInstalled) return;
     window.__mtClickCaptureInstalled = true;
 
+    var HIT = '.mt-tpl, .mt-track-toggle, .mt-fab, .mt-marks .mt-ck, .mt-marks .mt-fw, .mt-msgbar .mt-own, .mt-msgbar .mt-fwd';
     // Reaguojam į pointerdown – jis įvyksta anksčiausiai, dar prieš mousedown/click,
     // todėl Gmail nespėja paspaudimo "suvalgyti". click'ą tik nuslopinam.
     function handle(e, act) {
       var t = e.target;
       if (!t || !t.closest) return;
-      var hit = t.closest('.mt-tpl, .mt-track-toggle, .mt-fab');
+      if (act && !t.closest('.mt-pop')) closePop();
+      var hit = t.closest(HIT);
       if (!hit) return;
       e.stopPropagation();
       if (e.stopImmediatePropagation) e.stopImmediatePropagation();
@@ -790,6 +1125,7 @@
         alert('MailTrack Pro: spauskite plėtinio ikoną (🧩 viršuje) ir įveskite serverio adresą bei API raktą.');
         return;
       }
+      if (hit.__mtUid) { openHistory(hit, hit.__mtUid); return; }
       if (hit.classList.contains('mt-tpl')) {
         openTemplateMenu(hit, hit.__mtState);
       } else if (hit.classList.contains('mt-track-toggle')) {
@@ -813,19 +1149,18 @@
     document.addEventListener('pointerdown', function (e) { handle(e, true); }, true);
     document.addEventListener('mousedown', function (e) { handle(e, false); }, true);
     document.addEventListener('click', function (e) { handleSend(e); handle(e, false); }, true);
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closePop(); }, true);
   }
   // Registruojam IŠ KARTO (document_start), kad Gmail neužsiregistruotų anksčiau.
   installClickCapture();
 
-  /* Šablono įterpimas IŠ PLĖTINIO LANGO (popup).
-     Tai patikimiausias kelias: paspaudimas įvyksta mūsų pačių lange, kur Gmail
-     įvykių neperima, o čia atliekama tik DOM operacija. */
+  /* Šablono įterpimas IŠ PLĖTINIO LANGO (popup). */
   function currentComposeState() {
     if (lastComposeState && document.contains(lastComposeState.body)) return lastComposeState;
-    var el = document.querySelector('div[aria-label][contenteditable="true"], div[g_editable="true"][contenteditable="true"]');
-    if (!el) return null;
-    var dlg = el.closest('div[role="dialog"]') || el.closest('div.M9, div.aoI, div.nH') || el.parentElement;
-    return { on: true, dialog: dlg, body: el };
+    var b = document.querySelector('div[aria-label][contenteditable="true"], div[g_editable="true"][contenteditable="true"]');
+    if (!b) return null;
+    var dlg = b.closest('div[role="dialog"]') || b.closest('div.M9, div.aoI, div.nH') || b.parentElement;
+    return { on: true, dialog: dlg, body: b };
   }
   try {
     chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
@@ -845,18 +1180,21 @@
   } catch (e) { /* plėtinys perkraunamas */ }
 
   function boot() {
-    loadTrackSenders();
+    loadLocal();
     loadCfg(function () {
       safe('observe', function () { observer.observe(document.body, { childList: true, subtree: true }); });
       runCycle();
       if (ready) safe('pollFab', pollFab);
       setInterval(function () { safe('pollFab', pollFab); }, 20000);
+      // sąrašo ✓/✓✓ atnaujinimas net jei Gmail DOM nesikeičia
+      setInterval(function () { safe('decorateList', decorateList); }, 30000);
       window.addEventListener('hashchange', function () {
+        closePop();
         setTimeout(function () { safe('decorateList', decorateList); }, 400);
       });
       safe('storageListener', function () {
         chrome.storage.onChanged.addListener(function (c, area) {
-          if (area === 'sync') loadCfg(function () { if (ready) safe('ensureFab', ensureFab); });
+          if (area === 'sync') loadCfg(function () { lastStatusFetch = 0; if (ready) { safe('ensureFab', ensureFab); safe('decorateList', decorateList); } });
         });
       });
     });
