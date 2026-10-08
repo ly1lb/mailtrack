@@ -8,6 +8,7 @@
  */
 
 var SERVER_URL = 'https://track.example.com'; // <-- PAKEISKITE
+var ADDON_VERSION = '1.1';
 
 // ---------- Pagalbinės ----------
 function props() { return PropertiesService.getUserProperties(); }
@@ -76,7 +77,8 @@ function showSettings() { return settingsCard(''); }
 
 function settingsCard(note) {
   var card = CardService.newCardBuilder()
-    .setHeader(CardService.newCardHeader().setTitle('MailTrack Pro – nustatymai'));
+    .setHeader(CardService.newCardHeader().setTitle('MailTrack Pro – nustatymai')
+      .setSubtitle('Priedo versija ' + ADDON_VERSION));
   var s = CardService.newCardSection();
   if (note) s.addWidget(CardService.newTextParagraph().setText('<b>' + note + '</b>'));
   s.addWidget(CardService.newTextInput().setFieldName('serverUrl').setTitle('Serverio adresas')
@@ -113,25 +115,62 @@ function notify(text, navCardObj) {
     .build();
 }
 
-// ---------- Rašymo veiksmas: įterpti pikselį ----------
-function onComposeInsertPixel(e) {
-  if (!getApiKey()) return CardService.newUniversalActionResponseBuilder(); // negalima – parodom nustatymus
+// ---------- Rašymo veiksmas: sekimas ----------
+// Google reikalauja, kad rašymo veiksmas (composeTrigger) grąžintų KORTELĘ.
+// Laiško turinį keisti galima tik paspaudus kortelės mygtuką (UpdateDraftActionResponse).
+function onComposeTracking(e) {
+  if (!getApiKey()) return settingsCard('Įveskite API raktą, kad galėtumėte sekti laiškus.');
+  // Vienas uid visai kortelei: pikselis ir sekamos nuorodos priklausys tam pačiam laiškui.
+  var uid = uidGen();
+  var card = CardService.newCardBuilder()
+    .setHeader(CardService.newCardHeader().setTitle('Sekti šį laišką'));
+
+  var s = CardService.newCardSection();
+  s.addWidget(CardService.newTextParagraph().setText(
+    'Spauskite, kai gavėjas jau įvestas. Sekimo pikselis bus įdėtas laiško gale.'));
+  s.addWidget(CardService.newTextButton().setText('✓✓ Įterpti sekimą')
+    .setTextButtonStyle(CardService.TextButtonStyle.FILLED)
+    .setOnClickAction(CardService.newAction().setFunctionName('insertPixelAction')
+      .setParameters({ uid: uid })));
+  card.addSection(s);
+
+  var l = CardService.newCardSection().setHeader('Sekama nuoroda');
+  l.addWidget(CardService.newTextInput().setFieldName('linkUrl').setTitle('Nuorodos adresas')
+    .setHint('https://...'));
+  l.addWidget(CardService.newTextButton().setText('Įterpti sekamą nuorodą')
+    .setOnClickAction(CardService.newAction().setFunctionName('onComposeInsertLink')
+      .setParameters({ uid: uid })));
+  card.addSection(l);
+
+  return card.build();
+}
+
+/** Gavėjai/tema iš rašomo laiško (draftAccess: METADATA). Telefone dalies gali nebūti. */
+function draftMeta(e) {
+  var g = (e && e.gmail) || {};
+  var dm = (e && e.draftMetadata) || g.draftMetadata || {};
+  return {
+    subject: g.subject || dm.subject || '',
+    recipients: [].concat(g.toRecipients || dm.toRecipients || [], g.ccRecipients || dm.ccRecipients || [])
+  };
+}
+
+function toast(text) {
+  return CardService.newActionResponseBuilder()
+    .setNotification(CardService.newNotification().setText(text))
+    .build();
+}
+
+function esc(t) {
+  return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function insertPixelAction(e) {
+  var p = (e.commonEventObject && e.commonEventObject.parameters) || {};
   try {
-    var uid = uidGen();
-    var subject = '';
-    var recipients = [];
-    try {
-      // Kompozicijos metaduomenys (jei prieinami)
-      var draftMeta = e.gmail && e.gmail.draftMetadata ? e.gmail.draftMetadata : null;
-      if (draftMeta) {
-        subject = draftMeta.subject || '';
-        recipients = [].concat(draftMeta.toRecipients || [], draftMeta.ccRecipients || []);
-      }
-    } catch (mErr) { /* metaduomenų gali nebūti telefone */ }
-
-    api('POST', 'emails', { uid: uid, subject: subject, recipients: recipients, source: 'gmail-addon' });
-
-    var pixel = '<img src="' + server() + '/o/' + uid + '.gif" width="1" height="1" alt="" ' +
+    var meta = draftMeta(e);
+    var d = api('POST', 'emails', { uid: p.uid || uidGen(), subject: meta.subject, recipients: meta.recipients, source: 'gmail_addon' });
+    var pixel = '<img src="' + server() + '/o/' + d.uid + '.gif" width="1" height="1" alt="" ' +
       'style="width:1px;height:1px;border:0;opacity:0;display:block">';
 
     var update = CardService.newUpdateDraftBodyAction()
@@ -143,12 +182,7 @@ function onComposeInsertPixel(e) {
       .build();
   } catch (err) {
     logRemote('error', 'Įterpimo klaida: ' + err.message);
-    // Grąžinam pranešimą vartotojui
-    return CardService.newUpdateDraftActionResponseBuilder()
-      .setUpdateDraftBodyAction(CardService.newUpdateDraftBodyAction()
-        .addUpdateContent('<!-- MailTrack: klaida ' + err.message + ' -->', CardService.ContentType.MUTABLE_HTML)
-        .setUpdateType(CardService.UpdateDraftBodyType.INSERT_AT_END))
-      .build();
+    return toast('Nepavyko įterpti sekimo: ' + err.message);
   }
 }
 
@@ -194,14 +228,16 @@ function insertTemplateAction(e) {
   return b.build();
 }
 
-// ---------- Sekamos nuorodos įterpimas (universalus veiksmas) ----------
+// ---------- Sekamos nuorodos įterpimas (mygtukas „Sekti šį laišką“ kortelėje) ----------
 function onComposeInsertLink(e) {
+  var p = (e.commonEventObject && e.commonEventObject.parameters) || {};
   var f = e.commonEventObject.formInputs || {};
   var url = (f.linkUrl && f.linkUrl.stringInputs.value[0] || '').trim();
-  if (!/^https?:\/\//.test(url)) url = 'https://' + url;
+  if (!url) return toast('Įveskite nuorodos adresą.');
+  if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
   try {
-    var d = api('POST', 'links', { url: url, source: 'gmail-addon' });
-    var html = '<a href="' + d.tracked_url + '">' + url + '</a>';
+    var d = api('POST', 'links', { uid: p.uid || '', url: url, source: 'gmail_addon' });
+    var html = '<a href="' + esc(d.tracked_url) + '">' + esc(url) + '</a>';
     return CardService.newUpdateDraftActionResponseBuilder()
       .setUpdateDraftBodyAction(CardService.newUpdateDraftBodyAction()
         .addUpdateContent(html, CardService.ContentType.MUTABLE_HTML)
@@ -209,7 +245,7 @@ function onComposeInsertLink(e) {
       .build();
   } catch (err) {
     logRemote('error', 'Nuorodos įterpimo klaida: ' + err.message);
-    throw err;
+    return toast('Nepavyko įterpti nuorodos: ' + err.message);
   }
 }
 
